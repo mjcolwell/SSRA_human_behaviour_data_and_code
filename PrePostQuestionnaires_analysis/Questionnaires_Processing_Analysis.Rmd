@@ -1,0 +1,726 @@
+---
+title: "Pre.Post.Questionnaire.Analysis"
+author: "Michael Colwell"
+date: '2022-09-02'
+output: html_document
+---
+
+#Self-report data (pre/post) analysis from the FENCOG study. 
+
+#Contact: Michael Colwell (michael.colwell@psych.ox.ac.uk)
+
+```{r libraries, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gtools)
+library(knitr)
+library(data.table)
+library(ggplot2)
+library(car)
+library(ggbeeswarm)
+library(ggrepel)
+library(readxl)
+library(data.table)
+library(openxlsx)
+library(ggpubr)
+library(sdamr)
+library(rstatix)
+library("ez")
+library(ggsignif)
+library(RColorBrewer)
+library(emmeans)
+library(plotrix)
+library(sdamr)
+library(cowplot)
+library(psycho)
+library(ggridges)
+library(viridis)
+library(ggstance)
+library(ggdist)
+library(gghalves)
+library(ggpp)
+library(effectsize)
+library(lme4)
+library(lmerTest)
+```
+
+
+
+```{r pressure, echo=FALSE}
+setwd("C:/Users/micha/Desktop/PrePostQuestionnaires_analysis")
+
+Questionnaires <- read.xlsx("PREPOST_questionnaires_combined.xlsx")
+
+setwd("C:/Users/micha/Desktop/DemographicData")
+
+Demographics <- read.xlsx("Demo4Analysis.xlsx")
+
+Demographics$Participant.ID <- as.factor(Demographics$Participant.ID)
+
+QuestionnairesMaster <- merge(Questionnaires, Demographics, by = "Participant.ID")
+
+# Removal of consistent outlier - P008
+
+## Split Pre and Post
+QuestionnairesMasterPost <- QuestionnairesMaster %>% filter(!str_detect(PRE.POST, "PRE"))
+QuestionnairesMasterPre <- QuestionnairesMaster %>% filter(!str_detect(PRE.POST, "POST"))
+
+rm(removal_df, Questionnaires, Demographics)
+```
+
+
+
+```{r pressure, echo=FALSE}
+# ANCOVA Models - side effects
+
+ANCOVA_df_SE1 <- QuestionnairesMasterPost[c(
+  "Allocation", "Participant.ID", "Appetite.decrease", "Appetite.increase", "Drowsiness.fatigue", "Insomnia", "Sexual.side.effects", "Sweating", "Tremors", "Agitation",
+  "Anxiety", "Diarrhoea", "Dry.mouth", "Indigestion", "Nausea", "Upset.stomach", "SE.total", "Gender"
+)]
+
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Appetite.decrease.post = Appetite.decrease)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Appetite.increase.post = Appetite.increase)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Drowsiness.fatigue.post = Drowsiness.fatigue)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Insomnia.post = Insomnia)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Sexual.side.effects.post = Sexual.side.effects)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Sweating.post = Sweating)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Tremors.post = Tremors)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Agitation.post = Agitation)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Anxiety.post = Anxiety)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Diarrhoea.post = Diarrhoea)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Dry.mouth.post = Dry.mouth)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Indigestion.post = Indigestion)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Nausea.post = Nausea)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, Upset.stomach.post = Upset.stomach)
+ANCOVA_df_SE1 <- rename(ANCOVA_df_SE1, SE.total.post = SE.total)
+
+ANCOVA_df_SE2 <- QuestionnairesMasterPre[c(
+  "Allocation", "Participant.ID", "Appetite.decrease", "Appetite.increase", "Drowsiness.fatigue", "Insomnia", "Sexual.side.effects", "Sweating", "Tremors", "Agitation",
+  "Anxiety", "Diarrhoea", "Dry.mouth", "Indigestion", "Nausea", "Upset.stomach", "SE.total", "Gender"
+)]
+
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Appetite.decrease.pre = Appetite.decrease)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Appetite.increase.pre = Appetite.increase)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Drowsiness.fatigue.pre = Drowsiness.fatigue)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Insomnia.pre = Insomnia)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Sexual.side.effects.pre = Sexual.side.effects)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Sweating.pre = Sweating)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Tremors.pre = Tremors)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Agitation.pre = Agitation)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Anxiety.pre = Anxiety)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Diarrhoea.pre = Diarrhoea)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Dry.mouth.pre = Dry.mouth)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Indigestion.pre = Indigestion)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Nausea.pre = Nausea)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, Upset.stomach.pre = Upset.stomach)
+ANCOVA_df_SE2 <- rename(ANCOVA_df_SE2, SE.total.pre = SE.total)
+
+ANCOVA_df_Full <- left_join(ANCOVA_df_SE1, ANCOVA_df_SE2, by = c("Participant.ID", "Allocation", "Gender"))
+
+# Side effects baseline-adjusted ANCOVA analysis
+
+# Appetite decrease
+
+ANCOVA_Appetite_down <- aov(Appetite.decrease.post ~ Allocation + Appetite.decrease.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Appetite_down)
+
+ANCOVA_df_SE1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(Appetite.decrease.post, type = "mean_sd")
+
+# Appetite decrease
+
+ANCOVA_Appetite_up <- aov(Appetite.increase.post ~ Allocation + Appetite.increase.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Appetite_up)
+
+# Drowsiness/Fatigue
+
+ANCOVA_Drowsy <- aov(Drowsiness.fatigue.post ~ Allocation + Drowsiness.fatigue.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Drowsy)
+
+# Insomnia
+
+ANCOVA_Insom <- aov(Insomnia.post ~ Allocation + Insomnia.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Insom)
+
+# Sexual side effects
+
+ANCOVA_Sex_SE <- aov(Sexual.side.effects.post ~ Allocation + Sexual.side.effects.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Sex_SE)
+
+# Sweating
+
+ANCOVA_Sweat <- aov(Sweating.post ~ Allocation + Sweating.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Sweat)
+
+# Tremors
+
+ANCOVA_Tremors <- aov(Tremors.post ~ Allocation + Tremors.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Tremors)
+
+# Agitation
+
+ANCOVA_Agitation <- aov(Agitation.post ~ Allocation + Agitation.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Agitation)
+
+# Anxiety
+
+ANCOVA_Anxiety <- aov(Anxiety.post ~ Allocation + Anxiety.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Anxiety)
+
+# Diarrhoea
+
+ANCOVA_Diarrhoea <- aov(Diarrhoea.post ~ Allocation + Diarrhoea.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Diarrhoea)
+
+# Dry mouth
+
+ANCOVA_Dry <- aov(Dry.mouth.post ~ Allocation + Dry.mouth.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Dry)
+
+# Indigestion
+
+ANCOVA_Indigestion <- aov(Indigestion.post ~ Allocation + Indigestion.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Indigestion)
+
+# Nausea
+
+ANCOVA_Nausea <- aov(Nausea.post ~ Allocation + Nausea.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Nausea)
+
+# Upset Stomach
+
+ANCOVA_Upset <- aov(Upset.stomach.post ~ Allocation + Upset.stomach.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Upset)
+
+# SE_overall
+
+ANCOVA_SE_overall <- aov(SE.total.post ~ Allocation + SE.total.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_SE_overall)
+
+ANCOVA_df_SE1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(SE.total.post, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Gender <- aov(SE.total.post ~ Allocation + Gender + Allocation:Gender + SE.total.pre, data = ANCOVA_df_Full)
+
+summary(ANCOVA_Gender)
+
+ANCOVA_df_SE1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(SE.total.post, type = "mean_sd")
+
+#######################################################
+
+#######################################################
+
+# ANCOVA Models - other questionnaires (excl. SE)
+
+ANCOVA_df_Qs1 <- QuestionnairesMasterPost[c("Allocation", "Participant.ID", "STAI.nonanx", "STAI.anx", "BDI.total", "PDQ.total", "PANAS.neg", "PANAS.pos", "VAS.pos", "VAS.neg", "Motivated", "Gender")]
+
+ANCOVA_df_Qs1 <- rename(ANCOVA_df_Qs1, STAI.nonanx.post = STAI.nonanx)
+ANCOVA_df_Qs1 <- rename(ANCOVA_df_Qs1, STAI.anx.post = STAI.anx)
+ANCOVA_df_Qs1 <- rename(ANCOVA_df_Qs1, BDI.total.post = BDI.total)
+ANCOVA_df_Qs1 <- rename(ANCOVA_df_Qs1, PDQ.total.post = PDQ.total)
+ANCOVA_df_Qs1 <- rename(ANCOVA_df_Qs1, PANAS.neg.post = PANAS.neg)
+ANCOVA_df_Qs1 <- rename(ANCOVA_df_Qs1, PANAS.pos.post = PANAS.pos)
+ANCOVA_df_Qs1 <- rename(ANCOVA_df_Qs1, VAS.pos.post = VAS.pos)
+ANCOVA_df_Qs1 <- rename(ANCOVA_df_Qs1, VAS.neg.post = VAS.neg)
+ANCOVA_df_Qs1 <- rename(ANCOVA_df_Qs1, Motivated.post = Motivated)
+
+ANCOVA_df_Qs2 <- QuestionnairesMasterPre[c("Allocation", "Participant.ID", "STAI.nonanx", "STAI.anx", "BDI.total", "PDQ.total", "PANAS.neg", "PANAS.pos", "VAS.pos", "VAS.neg", "Motivated", "Gender")]
+
+ANCOVA_df_Qs2 <- rename(ANCOVA_df_Qs2, STAI.nonanx.pre = STAI.nonanx)
+ANCOVA_df_Qs2 <- rename(ANCOVA_df_Qs2, STAI.anx.pre = STAI.anx)
+ANCOVA_df_Qs2 <- rename(ANCOVA_df_Qs2, BDI.total.pre = BDI.total)
+ANCOVA_df_Qs2 <- rename(ANCOVA_df_Qs2, PDQ.total.pre = PDQ.total)
+ANCOVA_df_Qs2 <- rename(ANCOVA_df_Qs2, PANAS.neg.pre = PANAS.neg)
+ANCOVA_df_Qs2 <- rename(ANCOVA_df_Qs2, PANAS.pos.pre = PANAS.pos)
+ANCOVA_df_Qs2 <- rename(ANCOVA_df_Qs2, VAS.pos.pre = VAS.pos)
+ANCOVA_df_Qs2 <- rename(ANCOVA_df_Qs2, VAS.neg.pre = VAS.neg)
+ANCOVA_df_Qs2 <- rename(ANCOVA_df_Qs2, Motivated.pre = Motivated)
+
+ANCOVA_df_Full_Q <- left_join(ANCOVA_df_Qs1, ANCOVA_df_Qs2, by = c("Participant.ID", "Allocation", "Gender"))
+
+# Questionnaires baseline-adjusted ANCOVA analysis
+
+# BDI
+
+ANCOVA_BDI <- aov(BDI.total.post ~ Allocation + BDI.total.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_BDI)
+
+# Gender analysis
+
+ANCOVA_Gender <- aov(BDI.total.post ~ Allocation + Gender + Allocation:Gender + BDI.total.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_Gender)
+
+ANCOVA_df_Qs1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(BDI.total.post, type = "mean_sd")
+
+# STAI.nonanx
+
+ANCOVA_STAI.nonanx <- aov(STAI.nonanx.post ~ Allocation + STAI.nonanx.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_STAI.nonanx)
+
+# Gender analysis
+
+ANCOVA_Gender <- aov(STAI.nonanx.post ~ Allocation + Gender + Allocation:Gender + STAI.nonanx.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_Gender)
+
+ANCOVA_df_Qs1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(STAI.nonanx.post, type = "mean_sd")
+
+# STAI.anx
+
+ANCOVA_STAI.anx <- aov(STAI.anx.post ~ Allocation + STAI.anx.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_STAI.anx)
+
+# Gender analysis
+
+ANCOVA_Gender <- aov(STAI.anx.post ~ Allocation + Gender + Allocation:Gender + STAI.anx.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_Gender)
+
+ANCOVA_df_Qs1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(STAI.anx.post, type = "mean_sd")
+
+# PDQ
+
+ANCOVA_PDQ <- aov(PDQ.total.post ~ Allocation + PDQ.total.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_PDQ)
+
+# Gender analysis
+
+ANCOVA_Gender <- aov(PDQ.total.post ~ Allocation + Gender + Allocation:Gender + PDQ.total.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_Gender)
+
+ANCOVA_df_Qs1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(PDQ.total.post, type = "mean_sd")
+
+# PANAS negative
+
+ANCOVA_PANAS_neg <- aov(PANAS.neg.post ~ Allocation + PANAS.neg.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_PANAS_neg)
+
+lm_model <- lm(PANAS.neg.post ~ Allocation + PANAS.neg.pre, data = ANCOVA_df_Full_Q)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Non-sig EMM - likely reflects a 'placebo effect' in the placebo group.
+
+multicom_1 <- QuestionnairesMaster %>%
+  group_by(PRE.POST) %>%
+  emmeans_test(PANAS.neg ~ Allocation, p.adjust.method = "holm", detailed = TRUE)
+print(multicom_1)
+
+ANCOVA_df_Full_Q %>%
+  group_by(Allocation) %>%
+  get_summary_stats(PANAS.neg.pre, type = "mean_sd")
+
+# Driven by difference at baseline
+
+ANCOVA_PANAS_neg <- aov(PANAS.neg.post ~ Allocation + PANAS.neg.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_PANAS_neg)
+
+# Gender analysis
+
+ANCOVA_Gender <- aov(PANAS.neg.post ~ Allocation + Gender + Allocation:Gender + PANAS.neg.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_Gender)
+
+ANCOVA_df_Qs1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(PANAS.neg.post, type = "mean_sd")
+
+# PANAS positive
+
+ANCOVA_PANAS_pos <- aov(PANAS.pos.post ~ Allocation + PANAS.pos.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_PANAS_pos)
+
+# Gender analysis
+
+ANCOVA_Gender <- aov(PANAS.pos.post ~ Allocation + Gender + Allocation:Gender + PANAS.pos.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_Gender)
+
+ANCOVA_df_Qs1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(PANAS.pos.post, type = "mean_sd")
+
+# VAS positive
+
+ANCOVA_VAS_pos <- aov(VAS.pos.post ~ Allocation + VAS.pos.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_VAS_pos)
+
+# Gender analysis
+
+ANCOVA_Gender <- aov(VAS.pos.post ~ Allocation + Gender + Allocation:Gender + VAS.pos.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_Gender)
+
+ANCOVA_df_Qs1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(VAS.pos.post, type = "mean_sd")
+
+# VAS negative
+
+ANCOVA_VAS_neg <- aov(VAS.neg.post ~ Allocation + VAS.neg.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_VAS_neg)
+
+# Gender analysis
+
+ANCOVA_Gender <- aov(VAS.neg.post ~ Allocation + Gender + Allocation:Gender + VAS.neg.pre, data = ANCOVA_df_Full_Q)
+
+summary(ANCOVA_Gender)
+
+ANCOVA_df_Qs1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(VAS.neg.post, type = "mean_sd")
+```
+
+```{r pressure, echo=FALSE}
+# Figures
+
+# Follow-up
+
+BDI <- QuestionnairesMasterPost %>% ggplot(aes(x = Allocation, y = BDI.total, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Beck Depression Inventory (BDI) score\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title = element_text(size = 17), axis.text.x = element_text(size = 12), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+##
+
+STAI_Anx <- QuestionnairesMasterPost %>% ggplot(aes(x = Allocation, y = STAI.anx, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Spielberger State Anxiety Subscale score\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title = element_text(size = 17), axis.text.x = element_text(size = 12), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+##
+
+STAI_Nonanx <- QuestionnairesMasterPost %>% ggplot(aes(x = Allocation, y = STAI.nonanx, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Spielberger Trait Anxiety Subscale score\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title = element_text(size = 17), axis.text.x = element_text(size = 12), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+##
+
+STAI_Nonanx <- QuestionnairesMasterPost %>% ggplot(aes(x = Allocation, y = STAI.nonanx, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Spielberger Trait Anxiety Subscale score\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title = element_text(size = 17), axis.text.x = element_text(size = 12), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+##
+
+PDQ <- QuestionnairesMasterPost %>% ggplot(aes(x = Allocation, y = PDQ.total, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Perceived Deficits Questionnaire (PDQ) score\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title = element_text(size = 17), axis.text.x = element_text(size = 12), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+##
+
+PANAS_neg <- QuestionnairesMasterPost %>% ggplot(aes(x = Allocation, y = PANAS.neg, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Positive & Negative Affect Schedule - Negative score\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title = element_text(size = 17), axis.text.x = element_text(size = 12), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+##
+
+PANAS_pos <- QuestionnairesMasterPost %>% ggplot(aes(x = Allocation, y = PANAS.pos, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Positive & Negative Affect Schedule - Positive score\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title = element_text(size = 17), axis.text.x = element_text(size = 12), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+##
+
+Vas_neg <- QuestionnairesMasterPost %>% ggplot(aes(x = Allocation, y = VAS.neg, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Visual Analogue Scale - Negative score\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title = element_text(size = 17), axis.text.x = element_text(size = 12), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+##
+
+Vas_pos <- QuestionnairesMasterPost %>% ggplot(aes(x = Allocation, y = VAS.pos, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Visual Analogue Scale - Positive score\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title = element_text(size = 17), axis.text.x = element_text(size = 12), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+##
+
+CombinedPlots_followup <- plot_grid(BDI, STAI_Anx, STAI_Nonanx, PANAS_neg, PANAS_pos, Vas_neg, Vas_pos, PDQ, align = "v", ncol = 4, label_size = 20)
+````

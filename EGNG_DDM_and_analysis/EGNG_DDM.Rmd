@@ -1,0 +1,974 @@
+---
+title: "PILT_Comp_Analysis_FENCOG"
+author: "Michael Colwell"
+date: '2023-04-09'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Quality check and analysis scripts for OMT data in FENCOG project.
+
+```{r libraries, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gtools)
+library(knitr)
+library(data.table)
+library(ggplot2)
+library(car)
+library(ggbeeswarm)
+library(ggrepel)
+library(readxl)
+library(data.table)
+library(openxlsx)
+library(ggpubr)
+library(rstatix)
+library("ez")
+library(ggsignif)
+library(RColorBrewer)
+library(emmeans)
+library(plotrix)
+library(sdamr)
+library(cowplot)
+library(lme4)
+library(stringr)
+library(effectsize)
+library(lmerTest)
+library(ggridges)
+library(viridis)
+library(ggstance)
+library(ggdist)
+library(gghalves)
+library(ggpp)
+library(readxl)
+```
+
+## Set Dir and load in file
+
+```{r b0, echo=FALSE, include=TRUE}
+setwd("C:/Users/micha/Desktop/EGNG_DDM_and_analysis")
+
+MasterDDM <- read.csv("All_params.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+##Parsing + Demographic inclusion
+
+```{r b0, echo=FALSE, include=TRUE}
+MasterDDM$a.1. <- log(MasterDDM$a.1.)
+MasterDDM$v.1. <- MasterDDM$v.1. + 10
+MasterDDM$v.1. <- log1p(MasterDDM$v.1.)
+MasterDDM$t.1. <- log1p(MasterDDM$t.1.)
+MasterDDM$z.1. <- log(MasterDDM$z.1.)
+MasterDDM$dc.1. <- MasterDDM$dc.1. + 10
+MasterDDM$dc.1. <- log1p(MasterDDM$dc.1.)
+
+MasterDDM_Extra <- MasterDDM
+
+## Demographics
+
+setwd("C:/Users/micha/Desktop/DemographicData")
+
+Demographics <- read.xlsx("Demo4Analysis.xlsx")
+
+Demographics$Participant.ID <- as.factor(Demographics$Participant.ID)
+
+MasterDDM <- merge(MasterDDM, Demographics, by = "Participant.ID")
+
+removal_df <- subset(MasterDDM, Participant.ID != "P008" & Participant.ID != "P001" & Participant.ID != "P011")
+
+MasterDDM <- droplevels(removal_df)
+
+# 8 and 1 for redone
+
+# Split by PRE/POST
+
+MasterDDM_Post <- MasterDDM %>% filter(!str_detect(PRE.POST, "PRE"))
+MasterDDM_Pre <- MasterDDM %>% filter(!str_detect(PRE.POST, "POST"))
+
+rm(MasterPILTc, Demographics)
+```
+
+##Graphs for publication
+
+```{r Chunk 7 - Generation of figures for report, echo=FALSE}
+MasterDDM_Post_Fear <- MasterDDM_Post %>% filter(str_detect(Condition, "Fear"))
+
+Boxplot_beta_all <- MasterDDM_Post_Fear %>% ggplot(aes(x = Allocation, y = z.1., fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("****" = 0.0001, "***" = 0.001, "**" = 0.01, "*" = 0.05, "*" = 2), # Manually edited to reflect the EMM
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab("Log initial choice bias (z*a)\n\n") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title = element_text(size = 16), strip.text = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = 0)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    width = 0.07, x = -0.3, seed = 123,
+    nudge.from = "jittered"
+  ), aes(color = Allocation, shape = Allocation), size = 3.25, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(-2, -0.3)
+
+###
+
+MasterDDM_Post$Condition <- fct_relevel(MasterDDM_Post$Condition, "Control", "Happy", "Fear")
+MasterDDM_Pre$Condition <- fct_relevel(MasterDDM_Pre$Condition, "Control", "Happy", "Fear")
+
+Figure0 <- MasterDDM_Post %>%
+  group_by(PRE.POST, Allocation, Condition) %>%
+  summarize(value = mean(z.1.), SE = std.error(z.1.)) %>%
+  ggplot(aes(Condition, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Condition, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.8, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.2) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Log initial choice bias (z)\n\n") +
+  xlab("\n Emotional interference condition") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  geom_segment(aes(x = 3.2, y = -1.07, xend = 3.2, yend = -1.4, group = "segment")) +
+  geom_segment(aes(x = 3.2, y = -1.07, xend = 3.15, yend = -1.07, group = "segment")) +
+  geom_segment(aes(x = 3.2, y = -1.4, xend = 3.15, yend = -1.4, group = "segment")) +
+  geom_text(aes(x = 3.3, label = "*", y = -1.25), colour = "Black", size = 6.2)
+
+################################
+
+Figure1 <- MasterDDM_Post %>%
+  group_by(PRE.POST, Allocation, Condition) %>%
+  summarize(value = mean(a.1.), SE = std.error(a.1.)) %>%
+  ggplot(aes(Condition, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Condition, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.8, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.2) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Log boundary separation (a)\n\n") +
+  xlab("\n ") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.y = element_text(size = 18), axis.text.x = element_text(size = 18), axis.title.y = element_text(size = 21), axis.title.x = element_text(size = 21))
+
+Figure2 <- MasterDDM_Post %>%
+  group_by(PRE.POST, Allocation, Condition) %>%
+  summarize(value = mean(z.1.), SE = std.error(z.1.)) %>%
+  ggplot(aes(Condition, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Condition, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.8, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.2) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Log initial choice bias (z*a)\n\n") +
+  xlab("\n ") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.y = element_text(size = 18), axis.text.x = element_text(size = 18), axis.title.y = element_text(size = 21), axis.title.x = element_text(size = 21))
+
+Figure3 <- MasterDDM_Post %>%
+  group_by(PRE.POST, Allocation, Condition) %>%
+  summarize(value = mean(v.1., na.rm = TRUE), SE = std.error(v.1., na.rm = TRUE)) %>%
+  ggplot(aes(Condition, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Condition, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.8, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.2) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Log drift rate (v)\n\n") +
+  xlab("\n ") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.y = element_text(size = 18), axis.text.x = element_text(size = 18), axis.title.y = element_text(size = 21), axis.title.x = element_text(size = 21))
+
+Figure4 <- MasterDDM_Post %>%
+  group_by(PRE.POST, Allocation, Condition) %>%
+  summarize(value = mean(t.1.), SE = std.error(t.1.)) %>%
+  ggplot(aes(Condition, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Condition, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.8, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.2) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Log non-decision time (Ter)\n\n") +
+  xlab("\n ") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.y = element_text(size = 18), axis.text.x = element_text(size = 18), axis.title.y = element_text(size = 21), axis.title.x = element_text(size = 21))
+
+Figure5 <- MasterDDM_Post %>%
+  group_by(PRE.POST, Allocation, Condition) %>%
+  summarize(value = mean(dc.1., na.rm = TRUE), SE = std.error(dc.1., na.rm = TRUE)) %>%
+  ggplot(aes(Condition, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Condition, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.8, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.2) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Log drift criterion (dc)\n\n") +
+  xlab("\n ") +
+  theme_minimal() +
+  theme(legend.position = "none", axis.text.y = element_text(size = 18), axis.text.x = element_text(size = 18), axis.title.y = element_text(size = 21), axis.title.x = element_text(size = 21))
+
+Figure6 <- MasterDDM_Post %>%
+  group_by(PRE.POST, Allocation, Condition) %>%
+  summarize(value = mean(dc.1., na.rm = TRUE), SE = std.error(dc.1., na.rm = TRUE)) %>%
+  ggplot(aes(Condition, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Condition, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 3, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.2) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Log drift criterion (dc)\n\n") +
+  xlab("\n ") +
+  theme_minimal() +
+  theme(legend.position = "right", axis.text.y = element_text(size = 18), axis.text.x = element_text(size = 18), axis.title.y = element_text(size = 21), axis.title.x = element_text(size = 21), legend.key.size = unit(2, "cm"), legend.text = element_text(size = 20), legend.title = element_text(size = 20))
+
+legend <- get_legend(Figure6)
+
+CombinedPlots <- plot_grid(Figure1, Figure2, Figure3, Figure4, Figure5, legend, align = "v", ncol = 3, labels = c("A", "B", "C", "D", "E", ""), label_size = 25)
+
+#####################################
+
+# Baseline z.1.
+
+Figure2 <- MasterDDM_Pre %>%
+  group_by(PRE.POST, Allocation, Condition) %>%
+  summarize(value = mean(z.1.), SE = std.error(z.1.)) %>%
+  ggplot(aes(Condition, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Condition, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.4, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 0.9) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Log initial choice bias (z)\n\n") +
+  xlab("Emotional interference condition\n\n\n") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15))
+````
+  
+
+```{r b0, echo=FALSE, include=TRUE}
+# ANCOVA model setup and analysis
+
+ANCOdf1 <- MasterDDM_Post[c("Allocation", "Participant.ID", "Condition", "a.1.", "v.1.", "t.1.", "z_trans.1.", "z.1.", "dc.1.", "Gender")]
+
+ANCOdf1 <- rename(ANCOdf1, Boundary.Sep.Post = a.1.)
+ANCOdf1 <- rename(ANCOdf1, Drift.Rate.Post = v.1.)
+ANCOdf1 <- rename(ANCOdf1, ND.time.Post = t.1.)
+ANCOdf1 <- rename(ANCOdf1, I.Bias.trans.Post = z_trans.1.)
+ANCOdf1 <- rename(ANCOdf1, I.Bias.Post = z.1.)
+ANCOdf1 <- rename(ANCOdf1, Drift.Criterion.Post = dc.1.)
+
+ANCOdf2 <- MasterDDM_Pre[c("Allocation", "Participant.ID", "Condition", "a.1.", "v.1.", "t.1.", "z_trans.1.", "z.1.", "dc.1.", "Gender")]
+
+ANCOdf2 <- rename(ANCOdf2, Boundary.Sep.Pre = a.1.)
+ANCOdf2 <- rename(ANCOdf2, Drift.Rate.Pre = v.1.)
+ANCOdf2 <- rename(ANCOdf2, ND.time.Pre = t.1.)
+ANCOdf2 <- rename(ANCOdf2, I.Bias.trans.Pre = z_trans.1.)
+ANCOdf2 <- rename(ANCOdf2, I.Bias.Pre = z.1.)
+ANCOdf2 <- rename(ANCOdf2, Drift.Criterion.Pre = dc.1.)
+
+ANCOdfcomp <- left_join(ANCOdf1, ANCOdf2, by = c("Participant.ID", "Allocation", "Condition", "Gender"))
+
+# Model 1 - Boundary Sep
+
+ANCOVA_Boundary <- aov(Boundary.Sep.Post ~ Allocation + Condition + Allocation:Condition + Boundary.Sep.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Boundary)
+
+## Gender analysis
+
+ANCOVA_Boundary <- aov(Boundary.Sep.Post ~ Allocation + Condition + Allocation:Condition + Gender + Gender:Allocation + Gender:Allocation:Condition + Boundary.Sep.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Boundary)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(Boundary.Sep.Post, type = "mean_sd")
+
+# Model 2 - Drift Rate
+
+ANCOVA_Drift <- aov(Drift.Rate.Post ~ Allocation + Condition + Allocation:Condition + Drift.Rate.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Drift)
+
+## Gender analysis
+
+ANCOVA_Drift <- aov(Drift.Rate.Post ~ Allocation + Condition + Allocation:Condition + Gender + Gender:Allocation + Gender:Allocation:Condition + Drift.Rate.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Drift)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(Drift.Rate.Post, type = "mean_sd")
+
+# Drift rate at baseline
+
+ANCOVA_DC <- aov(Drift.Rate.Pre ~ Allocation + Condition + Allocation:Condition + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_DC)
+
+# Non-sig
+
+# Model 3 - Non-decision time
+
+ANCOVA_NDT <- aov(ND.time.Post ~ Allocation + Condition + Allocation:Condition + ND.time.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_NDT)
+
+lm_model <- lmer(ND.time.Post ~ Allocation + Condition + Allocation:Condition + I.Bias.Pre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+lm_model <- lm(ND.time.Post ~ Allocation + Condition + Allocation:Condition, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~ Allocation | Condition)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+####
+
+ANCOdfcompIsolated1 <- subset(ANCOdfcomp, !Condition %in% c("Happy"))
+ANCOdfcompIsolated1 <- subset(ANCOdfcompIsolated1, !Allocation %in% c("PLACEBO"))
+
+ANCOVA_NDT <- aov(ND.time.Post ~ Condition + ND.time.Pre + Error(Participant.ID), data = ANCOdfcompIsolated1)
+summary(ANCOVA_NDT)
+
+lm_model <- lmer(ND.time.Post ~ +Condition + I.Bias.Pre + (1 | Participant.ID), data = ANCOdfcompIsolated1)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+####
+
+ANCOdfcompIsolated2 <- subset(ANCOdfcomp, !Condition %in% c("Control"))
+ANCOdfcompIsolated2 <- subset(ANCOdfcompIsolated2, !Allocation %in% c("PLACEBO"))
+
+ANCOVA_NDT <- aov(ND.time.Post ~ Condition + ND.time.Pre + Error(Participant.ID), data = ANCOdfcompIsolated2)
+summary(ANCOVA_NDT)
+
+####
+
+ANCOdfcompIsolated3 <- subset(ANCOdfcomp, !Condition %in% c("Happy"))
+ANCOdfcompIsolated3 <- subset(ANCOdfcompIsolated3, !Allocation %in% c("ACTIVE"))
+
+ANCOVA_NDT <- aov(ND.time.Post ~ Condition + ND.time.Pre + Error(Participant.ID), data = ANCOdfcompIsolated3)
+summary(ANCOVA_NDT)
+
+####
+
+ANCOdfcompIsolated4 <- subset(ANCOdfcomp, !Condition %in% c("Control"))
+ANCOdfcompIsolated4 <- subset(ANCOdfcompIsolated4, !Allocation %in% c("ACTIVE"))
+
+ANCOVA_NDT <- aov(ND.time.Post ~ Condition + ND.time.Pre + Error(Participant.ID), data = ANCOdfcompIsolated4)
+summary(ANCOVA_NDT)
+
+## Gender analysis
+
+ANCOVA_NDT <- aov(ND.time.Post ~ Allocation + Condition + Allocation:Condition + Gender + Gender:Allocation + Gender:Allocation:Condition + ND.time.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_NDT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(ND.time.Post, type = "mean_sd")
+
+####
+
+# Model 4 - Choice Bias Transformed (depreciated)
+
+# ANCOVA_CBT <- aov(I.Bias.trans.Post ~ Allocation + Condition + Allocation:Condition + I.Bias.trans.Pre + Error(Participant.ID), data #= ANCOdfcomp)
+
+# summary(ANCOVA_CBT)
+
+# ANCOdfcomp %>%
+#  group_by(Condition) %>%
+#  emmeans_test(I.Bias.trans.Post ~ Allocation, p.adjust.method = "holm", detailed = TRUE)
+
+# Model 5 - Choice bias
+
+ANCOVA_CB <- aov(I.Bias.Post ~ Allocation + Condition + Allocation:Condition + I.Bias.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+lm_model <- lmer(I.Bias.Post ~ Allocation + Condition + Allocation:Condition + I.Bias.Pre + (1 | Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_CB)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Significant effect - proceed to analysing post data as post hoc
+
+# Calculate estimated marginal means (EMMs) for Allocation*Condition interaction
+
+lm_model <- lm(I.Bias.Post ~ Allocation + Condition + Allocation:Condition, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~ Allocation | Condition)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+
+# Summary descriptive statistics
+
+ANCOdfcomp %>%
+  group_by(Allocation, Condition) %>%
+  get_summary_stats(I.Bias.Post, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(I.Bias.Post ~ Allocation + Condition + Allocation:Condition + Gender + Gender:Allocation + Gender:Allocation:Condition + I.Bias.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(I.Bias.Post, type = "mean_sd")
+
+# Model 6 - Drift Criterion
+
+ANCOVA_DC <- aov(Drift.Criterion.Post ~ Allocation + Condition + Allocation:Condition + Drift.Criterion.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_DC)
+
+# Gender analysis
+
+ANCOVA_DC <- aov(Drift.Criterion.Post ~ Allocation + Allocation:Condition + Gender + Gender:Allocation + Gender:Allocation:Condition + Drift.Criterion.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_DC)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(Drift.Criterion.Post, type = "mean_sd")
+
+###
+```
+
+
+```{r b0, echo=FALSE, include=TRUE}
+# Synthetic and real data comparison
+
+# Synthetic first
+
+# Specify the folder path
+folder_path <- "C:/Users/micha/Desktop/EGNG_DDM_and_analysis/Fitted_Sim_Data/"
+
+# Function to combine files and add a mood column
+combine_files <- function(files, mood) {
+  if (length(files) > 0) {
+    # Initialize an empty data frame
+    combined_data <- data.frame()
+
+    # Loop through each file and read into a data frame
+    for (file in files) {
+      # Read data from the file
+      current_data <- read.table(file, header = TRUE, sep = ",")
+
+      # Add a column with the specified mood in every row
+      current_data$Mood <- mood
+
+      # Combine data frames
+      combined_data <- bind_rows(combined_data, current_data)
+    }
+
+    return(combined_data)
+  } else {
+    return(NULL)
+  }
+}
+
+# List files in the folder with "Happy"
+happy_files <- list.files(path = folder_path, pattern = "Happy", full.names = TRUE)
+
+# List files in the folder with "Fear"
+fear_files <- list.files(path = folder_path, pattern = "Fear", full.names = TRUE)
+
+# List files in the folder with "Scramble"
+scramble_files <- list.files(path = folder_path, pattern = "Scramble", full.names = TRUE)
+
+# Combine all files with "Happy"
+combined_happy <- combine_files(happy_files, "Happy")
+
+# Combine all files with "Fear"
+combined_fear <- combine_files(fear_files, "Fear")
+
+# Combine all files with "Scramble"
+combined_scramble <- combine_files(scramble_files, "Scramble")
+
+sim_combined <- bind_rows(combined_happy, combined_fear, combined_scramble)
+
+sim_combined$DataType <- "Synthetic"
+
+sim_combined <- sim_combined %>%
+  mutate(
+    Go_hit_acc = ifelse(stimulus == 1, correct, NA),
+    NoGo_hit_acc = ifelse(stimulus == 0, correct, NA)
+  )
+
+sim_combined <- sim_combined %>%
+  mutate(rt = if_else(stimulus == 0, NA_real_, rt))
+
+rm(fear_files, folder_path, scramble_files, happy_files, combined_fear, combined_happy, combined_scramble, combine_files)
+
+
+######################
+
+# Real data
+
+# Specify the folder path
+folder_path <- "C:/Users/micha/Desktop/EGNG_DDM_and_analysis/raw_data/Sep_halved/"
+
+# Function to combine files and add a mood column
+combine_files <- function(files, mood) {
+  if (length(files) > 0) {
+    # Initialize an empty data frame
+    combined_data <- data.frame()
+
+    # Loop through each file and read into a data frame
+    for (file in files) {
+      # Read data from the file
+      current_data <- read.table(file, header = TRUE, sep = ",")
+
+      # Add a column with the specified mood in every row
+      current_data$Mood <- mood
+
+      # Combine data frames
+      combined_data <- bind_rows(combined_data, current_data)
+    }
+
+    return(combined_data)
+  } else {
+    return(NULL)
+  }
+}
+
+# List files in the folder with "Happy"
+happy_files <- list.files(path = folder_path, pattern = "Happy", full.names = TRUE)
+
+# List files in the folder with "Fear"
+fear_files <- list.files(path = folder_path, pattern = "Fear", full.names = TRUE)
+
+# List files in the folder with "Scramble"
+scramble_files <- list.files(path = folder_path, pattern = "Scramble", full.names = TRUE)
+
+# Combine all files with "Happy"
+combined_happy <- combine_files(happy_files, "Happy")
+
+# Combine all files with "Fear"
+combined_fear <- combine_files(fear_files, "Fear")
+
+# Combine all files with "Scramble"
+combined_scramble <- combine_files(scramble_files, "Scramble")
+
+real_combined <- bind_rows(combined_happy, combined_fear, combined_scramble)
+
+rm(fear_files, folder_path, scramble_files, happy_files, combined_fear, combined_happy, combined_scramble, combine_files)
+
+real_combined$DataType <- "Real"
+
+real_combined <- real_combined %>%
+  mutate(
+    Go_hit_acc = ifelse(stimulus == 1, correct, NA),
+    NoGo_hit_acc = ifelse(stimulus == 0, correct, NA)
+  )
+
+
+real_combined <- real_combined %>%
+  mutate(rt = if_else(stimulus == 0, NA_real_, rt))
+
+
+########################################################################################################
+
+Synthetic_summary <- sim_combined %>%
+  group_by(subj_idx, Mood, DataType, stimulus) %>%
+  summarise(Response.time = mean(rt, na.rm = TRUE), Go.Acc = mean(Go_hit_acc, na.rm = TRUE) * 100, NoGo.Acc = mean(NoGo_hit_acc) * 100)
+
+Real_summary <- real_combined %>%
+  group_by(subj_idx, Mood, DataType, stimulus) %>%
+  summarise(Response.time = mean(rt, na.rm = TRUE), Go.Acc = mean(Go_hit_acc, na.rm = TRUE) * 100, NoGo.Acc = mean(NoGo_hit_acc) * 100)
+
+#####
+
+Summary_Combined <- bind_rows(Synthetic_summary, Real_summary)
+
+######
+`````
+```{r b0, echo=FALSE, include=TRUE}
+setwd("C:/Users/micha/Desktop/EGNG_DDM_and_analysis/param_recovery/")
+
+MasterDDM_sim <- read.csv("simulated_params_all.csv", header = TRUE, stringsAsFactors = FALSE)
+
+MasterDDM_sim$a.1. <- log(MasterDDM_sim$a.1.)
+MasterDDM_sim$v.1. <- MasterDDM_sim$v.1. + 10
+MasterDDM_sim$v.1. <- log1p(MasterDDM_sim$v.1.)
+MasterDDM_sim$t.1. <- log1p(MasterDDM_sim$t.1.)
+MasterDDM_sim$z.1. <- log(MasterDDM_sim$z.1.)
+MasterDDM_sim$dc.1. <- MasterDDM_sim$dc.1. + 10
+MasterDDM_sim$dc.1. <- log1p(MasterDDM_sim$dc.1.)
+````
+
+
+
+```{r b0, echo=FALSE, include=TRUE}
+# Graph generation
+
+# Simulated vs real prob density plots
+
+# Change density plot fill colors by groups
+RT_Graph <- ggplot(Summary_Combined, aes(x = Response.time, fill = DataType, linetype = DataType)) +
+  geom_density(alpha = 0.4, size = 1.1) +
+  theme_minimal() +
+  xlab("\n'Go' trial response time (ms)\n") +
+  ylab("\nP(Density)\n") +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title = element_text(size = 16))
+
+Go_Graph <- ggplot(Summary_Combined, aes(x = Go.Acc, fill = DataType, linetype = DataType)) +
+  geom_density(alpha = 0.4, size = 1.1) +
+  theme_minimal() +
+  xlab("\n'Go' trial accuracy (%)\n") +
+  ylab("") +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title = element_text(size = 16))
+
+NoGo_Graph <- ggplot(Summary_Combined, aes(x = NoGo.Acc, fill = DataType, linetype = DataType)) +
+  geom_density(alpha = 0.4, size = 1.1) +
+  theme_minimal() +
+  xlab("\n'No-Go' trial accuracy (%)\n") +
+  ylab("") +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title = element_text(size = 16))
+
+Blank <- ggplot(Summary_Combined, aes(x = NoGo.Acc, fill = DataType, linetype = DataType)) +
+  geom_density(alpha = 0.4, size = 1.1) +
+  theme_minimal() +
+  xlab("\n'No-Go' trial accuracy (%)\n") +
+  ylab("") +
+  theme(legend.position = "right", text = element_text(size = 14), axis.title = element_text(size = 16)) +
+  labs(fill = "Data type", linetype = "Data type")
+
+legend <- get_legend(Blank)
+
+CombinedPlots1 <- plot_grid(RT_Graph, Go_Graph, NoGo_Graph, align = "v", ncol = 3, labels = c("A"), label_size = 20)
+
+##### Param recovery plots
+
+MasterDDM_sim$Blank <- "Blank"
+
+BoundarySep <- MasterDDM_sim %>% ggplot(aes(x = Blank, y = a.1., fill = Blank)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  scale_color_manual(values = c("#828283")) +
+  scale_fill_manual(values = c("#828283")) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  labs(title = " ") +
+  ylab("Log boundary separation (a)") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title.y = element_text(size = 10), strip.text = element_blank(), axis.text.x = element_blank()) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(
+    position = position_jitternudge(
+      jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+    ), aes(color = Blank, shape = Blank),
+    size = 4.4, stroke = 0.2, alpha = 0.5
+  ) +
+  scale_shape_manual(values = c(19, 15)) +
+  geom_hline(yintercept = log(1.0), linetype = "dashed", color = "orange", size = 1)
+
+
+InitialChoice <- MasterDDM_sim %>% ggplot(aes(x = Blank, y = z.1., fill = Blank)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  scale_color_manual(values = c("#828283")) +
+  scale_fill_manual(values = c("#828283")) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  labs(title = " ") +
+  ylab("Log initial choice bias (z*a)") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title.y = element_text(size = 10), strip.text = element_blank(), axis.text.x = element_blank()) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(
+    position = position_jitternudge(
+      jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+    ), aes(color = Blank, shape = Blank),
+    size = 4.4, stroke = 0.2, alpha = 0.5
+  ) +
+  scale_shape_manual(values = c(19, 15)) +
+  geom_hline(yintercept = log(0.25), linetype = "dashed", color = "orange", size = 1)
+
+
+DriftRate <- MasterDDM_sim %>% ggplot(aes(x = Blank, y = v.1., fill = Blank)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  scale_color_manual(values = c("#828283")) +
+  scale_fill_manual(values = c("#828283")) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  labs(title = " ") +
+  ylab("Log drift rate (v)") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title.y = element_text(size = 10), strip.text = element_blank(), axis.text.x = element_blank()) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(
+    position = position_jitternudge(
+      jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+    ), aes(color = Blank, shape = Blank),
+    size = 4.4, stroke = 0.2, alpha = 0.5
+  ) +
+  scale_shape_manual(values = c(19, 15)) +
+  geom_hline(yintercept = log1p(4.5 + 10), linetype = "dashed", color = "orange", size = 1) +
+  ylim(NA, 2.9)
+
+NonDec <- MasterDDM_sim %>% ggplot(aes(x = Blank, y = t.1., fill = Blank)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  scale_color_manual(values = c("#828283")) +
+  scale_fill_manual(values = c("#828283")) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  labs(title = " ") +
+  ylab("Log non-decision time (Ter)") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title.y = element_text(size = 10), strip.text = element_blank(), axis.text.x = element_blank()) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(
+    position = position_jitternudge(
+      jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+    ), aes(color = Blank, shape = Blank),
+    size = 4.4, stroke = 0.2, alpha = 0.5
+  ) +
+  scale_shape_manual(values = c(19, 15)) +
+  geom_hline(yintercept = log1p(0.18), linetype = "dashed", color = "orange", size = 1)
+
+DriftCriterion <- MasterDDM_sim %>% ggplot(aes(x = Blank, y = dc.1., fill = Blank)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  labs(title = " ") +
+  scale_color_manual(values = c("#828283")) +
+  scale_fill_manual(values = c("#828283")) +
+  ylab("Log drift criterion (dc)") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title.y = element_text(size = 10), strip.text = element_blank(), axis.text.x = element_blank()) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(
+    position = position_jitternudge(
+      jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+    ), aes(color = Blank, shape = Blank),
+    size = 4.4, stroke = 0.2, alpha = 0.5
+  ) +
+  scale_shape_manual(values = c(19, 15)) +
+  geom_hline(yintercept = log1p(0.2 + 10), linetype = "dashed", color = "orange", size = 1) +
+  ylim(2.0, NA)
+
+
+CombinedPlots2 <- plot_grid(BoundarySep, InitialChoice, DriftRate, NonDec, DriftCriterion, align = "v", ncol = 3, labels = c("B"), label_size = 20)
+
+CombinedAll <- plot_grid(CombinedPlots1, CombinedPlots2, ncol = 1)
+```
+
+
+```{r b0, echo=FALSE, include=TRUE}
+# Data-free simulation
+
+setwd("C:/Users/micha/Desktop/EGNG_DDM_and_analysis/")
+
+DataFreeSim <- read.csv("C:/Users/micha/Desktop/EGNG_DDM_and_analysis/datafree_simulation.csv", header = TRUE, stringsAsFactors = FALSE)
+
+DataFreeSim$DataType <- "DataFreeSynth"
+
+DataFreeSim <- DataFreeSim %>%
+  mutate(
+    Go_hit_acc = ifelse(stimulus == 1, correct, NA),
+    NoGo_hit_acc = ifelse(stimulus == 0, correct, NA)
+  )
+
+DataFreeSim <- DataFreeSim %>%
+  mutate(rt = if_else(stimulus == 0, NA_real_, rt))
+
+DataFreeSim_Summary <- DataFreeSim %>%
+  group_by(subj_idx, stimulus, DataType) %>%
+  summarise(Response.time = mean(rt, na.rm = TRUE), Go.Acc = mean(Go_hit_acc, na.rm = TRUE) * 100, NoGo.Acc = mean(NoGo_hit_acc) * 100)
+
+Summary_Combined2 <- bind_rows(Real_summary, DataFreeSim_Summary)
+
+#####################################################################################
+
+
+# Data-free simulation check vs real data
+
+##########################
+
+
+# Change density plot fill colors by groups
+RT_Graph <- ggplot(Summary_Combined2, aes(x = Response.time, fill = DataType, linetype = DataType)) +
+  geom_density(alpha = 0.4, size = 1.1) +
+  theme_minimal() +
+  xlab("\n'Go' trial response time (ms)\n") +
+  ylab("\nP(Density)\n") +
+  theme(legend.position = "right", text = element_text(size = 14), axis.title = element_text(size = 16))
+
+# Change density plot fill colors by groups
+RT_Graph <- ggplot(Summary_Combined2, aes(x = Go.Acc, fill = DataType, linetype = DataType)) +
+  geom_density(alpha = 0.4, size = 1.1) +
+  theme_minimal() +
+  xlab("\n'Go' trial response time (ms)\n") +
+  ylab("\nP(Density)\n") +
+  theme(legend.position = "right", text = element_text(size = 14), axis.title = element_text(size = 16))
+
+# Change density plot fill colors by groups
+RT_Graph <- ggplot(Summary_Combined2, aes(x = NoGo.Acc, fill = DataType, linetype = DataType)) +
+  geom_density(alpha = 0.4, size = 1.1) +
+  theme_minimal() +
+  xlab("\n'Go' trial response time (ms)\n") +
+  ylab("\nP(Density)\n") +
+  theme(legend.position = "right", text = element_text(size = 14), axis.title = element_text(size = 16))
+
+## Peaks and throughs of data-free simulations roughly match the original data.
+`````

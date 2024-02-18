@@ -1,0 +1,583 @@
+---
+title: "Pre.Post.Questionnaire.Analysis"
+author: "Michael Colwell"
+date: '2022-09-02'
+output: html_document
+---
+
+#Preprocessing script for daily self-report data collected during the FENCOG study. 
+#Contact: Michael Colwell (michael.colwell@psych.ox.ac.uk).
+
+```{r libraries, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gtools)
+library(knitr)
+library(data.table)
+library(ggplot2)
+library(car)
+library(ggbeeswarm)
+library(ggrepel)
+library(readxl)
+library(data.table)
+library(openxlsx)
+library(ggpubr)
+library(rstatix)
+library("ez")
+library(ggsignif)
+library(RColorBrewer)
+library(emmeans)
+library(plotrix)
+library(sdamr)
+library(cowplot)
+library(lme4)
+library(stringr)
+library(effectsize)
+library(lmerTest)
+library(ggridges)
+library(viridis)
+library(ggstance)
+library(ggdist)
+library(gghalves)
+library(ggpp)
+library(readxl)
+```
+
+
+```{r pressure, echo=FALSE}
+## Load in relevant data
+
+setwd("C:/Users/micha/Desktop/DailyData_Analysis/")
+
+Questionnaires <- read.csv("Cleaned_dataset_daily_pre_and_post.csv")
+
+setwd("C:/Users/micha/Desktop/DemographicData")
+
+Demographics <- read.xlsx("Demo4Analysis.xlsx")
+
+QuestionnairesM <- Questionnaires %>% complete(Participant.ID, DayI, fill = list(value = 0))
+
+Demographics$Participant.ID <- as.factor(Demographics$Participant.ID)
+
+QuestionnairesM <- merge(QuestionnairesM, Demographics, by = "Participant.ID")
+
+removal_df <- subset(QuestionnairesM, Participant.ID != "P008")
+
+QuestionnairesMaster <- droplevels(removal_df)
+
+rm(Questionnaires)
+```
+
+
+```{r pressure, echo=FALSE}
+## Analysis of daily data of subjective questionnaires
+
+## Note: We are not using BDI data for analysis, as the measure requests the user to reflect on mood state during a window of time which is shorter than the treatment allocation period (7, 8 or 9 days).
+```
+
+```{r pressure, echo=FALSE}
+# VAS positive items model
+
+Vas_Pos_Model <- with(QuestionnairesMaster, lmer(VAS_pos ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(Vas_Pos_Model, conf.int = TRUE)
+
+confint(Vas_Pos_Model, method = "Wald")
+
+# VAS negative items model
+
+Vas_neg_Model <- with(QuestionnairesMaster, lmer(VAS_neg ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(Vas_neg_Model, conf.int = TRUE)
+
+confint(Vas_neg_Model, method = "Wald")
+
+############################################
+
+# Side effects daily models
+
+# Ap decrease model
+
+app_down_Model <- with(QuestionnairesMaster, lmer(Appetite..decreased ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(app_down_Model, conf.int = TRUE)
+
+confint(app_down_Model, method = "Wald")
+
+# Ap increase model
+
+app_up_Model <- with(QuestionnairesMaster, lmer(Appetite..increased ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(app_up_Model, conf.int = TRUE)
+
+confint(app_up_Model, method = "Wald")
+
+# Drowsiness_Fatigue
+
+drowsy_Model <- with(QuestionnairesMaster, lmer(Drowsiness.fatigue ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(drowsy_Model, conf.int = TRUE)
+
+confint(drowsy_Model, method = "Wald")
+
+# Insomnia
+
+insom_Model <- with(QuestionnairesMaster, lmer(Insomnia ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(insom_Model, conf.int = TRUE)
+
+confint(insom_Model, method = "Wald")
+
+# Sexual side-effects
+
+sexse_Model <- with(QuestionnairesMaster, lmer(Sexual.side.effects ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(sexse_Model, conf.int = TRUE)
+
+confint(sexse_Model, method = "Wald")
+
+# Sweating_model
+
+sweat_Model <- with(QuestionnairesMaster, lmer(Sweating ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(sweat_Model, conf.int = TRUE)
+
+confint(sweat_Model, method = "Wald")
+
+# Tremors
+
+tremor_Model <- with(QuestionnairesMaster, lmer(Tremors ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(tremor_Model, conf.int = TRUE)
+
+confint(tremor_Model, method = "Wald")
+
+# Agitation
+
+agitation_Model <- with(QuestionnairesMaster, lmer(Agitation ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(agitation_Model, conf.int = TRUE)
+
+confint(agitation_Model, method = "Wald")
+
+# Anxiety
+
+anxiety_Model <- with(QuestionnairesMaster, lmer(Anxiety.Nervousness ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(anxiety_Model, conf.int = TRUE)
+
+confint(anxiety_Model, method = "Wald")
+
+# Diarrhoea
+
+Diarrhoea_Model <- with(QuestionnairesMaster, lmer(Diarrhoea ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(Diarrhoea_Model, conf.int = TRUE)
+
+confint(Diarrhoea_Model, method = "Wald")
+
+# Dry Mouth
+
+Dry_Model <- with(QuestionnairesMaster, lmer(Dry.mouth ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(Dry_Model, conf.int = TRUE)
+
+confint(Dry_Model, method = "Wald")
+
+# Indigestion
+
+Indigestion_Model <- with(QuestionnairesMaster, lmer(Indigestion ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(Indigestion_Model, conf.int = TRUE)
+
+confint(Indigestion_Model, method = "Wald")
+
+# Nausea
+
+Nausea_Model <- with(QuestionnairesMaster, lmer(Nausea ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(Nausea_Model, conf.int = TRUE)
+
+confint(Nausea_Model, method = "Wald")
+
+# Upset_stomach
+
+Upset_stomach_model <- with(QuestionnairesMaster, lmer(Upset.stomach ~ Allocation + DayI + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(Upset_stomach_model, conf.int = TRUE)
+
+confint(Upset_stomach_model, method = "Wald")
+
+##
+```
+```{r pressure, echo=FALSE}
+# Plots/Figures
+
+QuestionnairesMastertest <- QuestionnairesMaster
+
+QuestionnairesMastertest$VAS_pos <- na.omit(QuestionnairesMastertest$VAS_pos)
+
+x_breaks <- c(1, 3, 5, 7, 9)
+
+Vas_pos <- QuestionnairesMaster %>%
+  drop_na(VAS_pos) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(VAS_pos), SE = sd(VAS_pos) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nVAS - Positive Items Score\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+###
+
+Vas_neg <- QuestionnairesMaster %>%
+  drop_na(VAS_neg) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(VAS_neg), SE = sd(VAS_neg) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nVAS - Negative Items Score\n", x = "\nTime (Days)\n") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "bottom", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+###
+
+CombinedPlots_VAS <- plot_grid(Vas_pos, Vas_neg, align = "v", ncol = 1, label_size = 20)
+
+###
+
+# side effects
+
+Appetite_Dec <- QuestionnairesMaster %>%
+  drop_na(Appetite..decreased) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Appetite..decreased), SE = sd(Appetite..decreased) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nAppetite +\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+Appetite_Inc <- QuestionnairesMaster %>%
+  drop_na(Appetite..increased) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Appetite..increased), SE = sd(Appetite..increased) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nAppetite -\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+DrowsiFatigue <- QuestionnairesMaster %>%
+  drop_na(Drowsiness.fatigue) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Drowsiness.fatigue), SE = sd(Drowsiness.fatigue) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nDrowsiness\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+Insom <- QuestionnairesMaster %>%
+  drop_na(Insomnia) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Insomnia), SE = sd(Insomnia) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nInsominia\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+SexSide <- QuestionnairesMaster %>%
+  drop_na(Sexual.side.effects) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Sexual.side.effects), SE = sd(Sexual.side.effects) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nSexual SE\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8) +
+  ylim(NA, 0.3)
+
+#
+
+Sweat <- QuestionnairesMaster %>%
+  drop_na(Sweating) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Sweating), SE = sd(Sweating) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nSweating\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8) +
+  ylim(NA, 0.25)
+
+#
+
+Trem <- QuestionnairesMaster %>%
+  drop_na(Tremors) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Tremors), SE = sd(Tremors) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nSweating\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+Agi <- QuestionnairesMaster %>%
+  drop_na(Agitation) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Agitation), SE = sd(Agitation) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nAgitation\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+Anx <- QuestionnairesMaster %>%
+  drop_na(Anxiety.Nervousness) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Anxiety.Nervousness), SE = sd(Anxiety.Nervousness) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nAnxiety\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+Diarr <- QuestionnairesMaster %>%
+  drop_na(Diarrhoea) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Diarrhoea), SE = sd(Diarrhoea) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nDiarrhoea\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+Drym <- QuestionnairesMaster %>%
+  drop_na(Dry.mouth) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Dry.mouth), SE = sd(Dry.mouth) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nDry Mouth\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+Indig <- QuestionnairesMaster %>%
+  drop_na(Indigestion) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Indigestion), SE = sd(Indigestion) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nIndigestion\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+Naus <- QuestionnairesMaster %>%
+  drop_na(Nausea) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Nausea), SE = sd(Nausea) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nNausea\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+Upse <- QuestionnairesMaster %>%
+  drop_na(Upset.stomach) %>% # Remove rows with NAs in VAS_pos
+  group_by(Allocation, DayI, .groups = "drop") %>%
+  summarize(value = mean(Upset.stomach), SE = sd(Upset.stomach) / sqrt(n())) %>%
+  ggplot(aes(x = DayI, y = value, group = Allocation, color = Allocation, shape = Allocation, fill = Allocation)) +
+  geom_line(aes(linetype = Allocation), size = 0.8) +
+  geom_point(size = 3.0, alpha = 0.8) +
+  geom_errorbar(aes(ymin = value - SE, ymax = value + SE), width = 0.25) +
+  geom_ribbon(aes(ymin = value - SE, ymax = value + SE), alpha = 0.095, color = NA) +
+  labs(y = "\nUpset stomach\n", x = "") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "None", axis.text.x = element_text(size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14)) +
+  scale_x_continuous(breaks = x_breaks) +
+  xlim(NA, 8)
+
+#
+
+CombinedPlots_SE <- plot_grid(Appetite_Dec, Appetite_Inc, DrowsiFatigue, Insom, SexSide, Sweat, Trem, Agi, Anx, Diarr, Drym, Indig, Naus, Upse, align = "v", ncol = 3, label_size = 20)
+```

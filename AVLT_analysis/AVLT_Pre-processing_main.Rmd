@@ -1,0 +1,599 @@
+---
+title: "Test"
+output: html_document
+---
+
+## R Markdown for AVLT Task
+
+The majority of this script was created by Hosana Tagomori under supervision of Dr Amy Gillespie.
+
+Michael Colwell (michael.colwell@psych.ox.ac.uk) has modified the script to increase its user-friendliness and alterations to statistical analysis.
+
+```{r}
+rm(list = ls()) # clear workspace
+```
+
+```{r Library load, results="hide", include=FALSE}
+library(knitr)
+library(readr)
+library(dplyr)
+library(tidyverse)
+library(gtools)
+library(stringr)
+library(purrr)
+library(ggrepel)
+library(readxl)
+library(openxlsx)
+library("ez")
+library(rstatix)
+library(emmeans)
+library(FSA)
+library(coin)
+library(ggsignif)
+library(RColorBrewer)
+library(emmeans)
+library(plotrix)
+library(sdamr)
+library(cowplot)
+library(car)
+library(data.table)
+library(ggplot2)
+```
+
+#File Loading and Merging
+
+```{r File Merge, results="hide", include=FALSE}
+setwd("C:/Users/micha/Desktop/AVLT_analysis/Updated AVLT Participant Data") # set path to the bigger folder
+
+filelist <- list.files("Data_Test") # Creates a list of files. Refers to folder where files from data directory are stored.
+
+# loop through the file list to read in the data
+for (file in filelist) {
+  df <- paste("Data/", file, sep = "") #' Data_Test' is the folder containing all participant data
+  outputname <- paste("scored", file) # rename the file with the word 'scored'
+
+  AVLT <-
+    read.csv(df, header = FALSE) # read each of the individual participant files
+
+  # uses the rmarkdown file listed in the input line and creates multiple outputs of scored AVLT files
+  rmarkdown::render(
+    input = "AVLT_Pre-processing_supp.Rmd",
+    output_format = "html_document"
+  )
+}
+
+# merge together all scored files
+
+AVLT_summary_all <- list.files(
+  path = "C:/Users/micha/Desktop/AVLT_analysis/Updated AVLT Participant Data",
+  pattern = glob2rx("*scored*"),
+  full.names = TRUE
+) %>%
+  set_names() %>%
+  map_dfr(read_csv, .id = "file_name") %>%
+  mutate(file_name = basename(file_name))
+
+
+# tidy up column with file names
+
+# use gsub to remove unecessary strings.
+AVLT_summary_all$Participant_Num <- gsub("scored", "", AVLT_summary_all$file_name) # create a new column called 'participant id'. Remove 'scored'.
+
+AVLT_summary_all$Participant_Num <- strtrim(AVLT_summary_all$Participant_Num, 4) # trim the string to the first three characters to only reveal the participant ID.
+
+AVLT_summary_all$Participant_Num <- parse_number(AVLT_summary_all$Participant_Num) # take the participant number from the shortened participant ID string
+
+
+AVLT_summary_all$taskversion <- ifelse(grepl("tv1", AVLT_summary_all$file_name), "1",
+  ifelse(grepl("tv2", AVLT_summary_all$file_name), "2", "unknown")
+) # create a column labelled task version, replacing all the tv1s with 1s and tv2s with 2s, respectively
+
+
+AVLT_summary_all$visitnumber <- ifelse(grepl("pre", AVLT_summary_all$file_name), "pre",
+  ifelse(grepl("post", AVLT_summary_all$file_name), "post", "unknown")
+) # create a column labelled visit number, replacing all'pre' with 'pre' and 'post' with 'post'.
+
+
+write.csv(AVLT_summary_all, "AVLT_summary_all.csv") # write to csv so can use in subsequent R scripts without having to load this each time.
+```
+
+#Further data parsing (Part 1)
+
+```{r}
+AVLT_summary_all$Prefix <- "P0"
+
+AVLT_summary_all$Participant_Num <- ifelse(AVLT_summary_all$Participant_Num < 10, paste("0", AVLT_summary_all$Participant_Num, sep = ""),
+  paste(AVLT_summary_all$Participant_Num, "", sep = "")
+)
+
+
+AVLT_summary_all$Participant.ID <- gsub(" ", "", paste(AVLT_summary_all$Prefix, AVLT_summary_all$Participant_Num))
+
+AVLT_summary_all <- dplyr::select(AVLT_summary_all, -c("Prefix", "Participant_Num", "file_name"))
+
+# Removal of two participants where data was incomplete.
+
+removal_df <- subset(AVLT_summary_all, Participant.ID != "P011" & Participant.ID != "P041")
+
+AVLT_summary_all <- droplevels(removal_df)
+
+setwd("C:/Users/micha/Desktop/DemographicData")
+
+Demographics <- read.xlsx("Demo4Analysis.xlsx")
+
+Demographics$Participant.ID <- as.factor(Demographics$Participant.ID)
+
+MasterAVLT <- merge(AVLT_summary_all, Demographics, by = "Participant.ID")
+
+rm(removal_df, Demographics)
+
+MasterAVLT$visitnumber <- recode_factor(MasterAVLT$visitnumber, "pre" = "Baseline")
+
+MasterAVLT$visitnumber <- recode_factor(MasterAVLT$visitnumber, "post" = "Post")
+
+MasterAVLT <- MasterAVLT %>% rename("PRE.POST" = visitnumber)
+
+MasterAVLT_acc <- MasterAVLT %>% pivot_longer(cols = ends_with("_total_correct"), names_to = "Trial_type", values_to = "Trial_Score", values_drop_na = TRUE)
+
+MasterAVLT_repetitions <- MasterAVLT %>% pivot_longer(cols = ends_with("_total_repetitions"), names_to = "Trial_type", values_to = "Trial_Score", values_drop_na = TRUE)
+
+MasterAVLT_intrusions <- MasterAVLT %>% pivot_longer(cols = ends_with("_total_intrusions"), names_to = "Trial_type", values_to = "Trial_Score", values_drop_na = TRUE)
+
+MasterAVLT_acc$Trial_type <- recode_factor(MasterAVLT_acc$Trial_type,
+  "Trial_1_total_correct" = "Trial 1", "Trial_2_total_correct" = "Trial 2", "Trial_3_total_correct" = "Trial 3", "Trial_4_total_correct" = "Trial 4", "Trial_5_total_correct" = "Trial 5",
+  "list_B_total_correct" = "Novel trial", "Short_delay_total_correct" = "Short delay",
+  "Long_delay_total_correct" = "Long delay"
+)
+
+MasterAVLT_repetitions$Trial_type <- recode_factor(MasterAVLT_repetitions$Trial_type,
+  "Trial_1_total_repetitions" = "Trial 1", "Trial_2_total_repetitions" = "Trial 2", "Trial_3_total_repetitions" = "Trial 3", "Trial_4_total_repetitions" = "Trial 4", "Trial_5_total_repetitions" = "Trial 5",
+  "List_B_total_repetitions" = "Novel trial", "Short_delay_total_repetitions" = "Short delay",
+  "Long_delay_total_repetitions" = "Long delay"
+)
+
+MasterAVLT_intrusions$Trial_type <- recode_factor(MasterAVLT_intrusions$Trial_type,
+  "Trial_1_total_intrusions" = "Trial 1", "Trial_2_total_intrusions" = "Trial 2", "Trial_3_total_intrusions" = "Trial 3", "Trial_4_total_intrusions" = "Trial 4", "Trial_5_total_intrusions" = "Trial 5", "List_B_total_intrusions" = "Novel trial", "Short_delay_total_intrusions" = "Short delay",
+  "Long_delay_total_intrusions" = "Long delay"
+)
+
+MasterAVLT_acc <- MasterAVLT_acc %>% mutate(TrialScoreLog = log(Trial_Score))
+```
+
+#Further data parsing (Part 2)
+
+```{r}
+# Total_correct (acc = accuracy)
+# Removal of incomplete datasets (P011 & P041).
+
+removal_df2 <- subset(MasterAVLT_acc, Participant.ID != "P011" & Participant.ID != "P041")
+
+MasterAVLT_accNA <- droplevels(removal_df2)
+
+MasterAVLT_accNA$Trial_type2 <- MasterAVLT_accNA$Trial_type
+
+MasterAVLT_accNA$Trial_type2 <- recode_factor(MasterAVLT_accNA$Trial_type2, "Trial 1" = "Learning")
+MasterAVLT_accNA$Trial_type2 <- recode_factor(MasterAVLT_accNA$Trial_type2, "Trial 2" = "Learning")
+MasterAVLT_accNA$Trial_type2 <- recode_factor(MasterAVLT_accNA$Trial_type2, "Trial 3" = "Learning")
+MasterAVLT_accNA$Trial_type2 <- recode_factor(MasterAVLT_accNA$Trial_type2, "Trial 4" = "Learning")
+MasterAVLT_accNA$Trial_type2 <- recode_factor(MasterAVLT_accNA$Trial_type2, "Trial 5" = "Learning")
+MasterAVLT_accNA$Trial_type2 <- recode_factor(MasterAVLT_accNA$Trial_type2, "Short delay" = "Delayed recall")
+MasterAVLT_accNA$Trial_type2 <- recode_factor(MasterAVLT_accNA$Trial_type2, "Long delay" = "Delayed recall")
+
+MasterAVLT_accNAPost <- MasterAVLT_accNA %>% filter(!str_detect(PRE.POST, "Baseline"))
+MasterAVLT_accNAPre <- MasterAVLT_accNA %>% filter(!str_detect(PRE.POST, "Post"))
+
+## Repetitions data
+
+removal_df2 <- subset(MasterAVLT_repetitions, Participant.ID != "P011" & Participant.ID != "P041")
+
+MasterAVLT_repetitions <- droplevels(removal_df2)
+
+MasterAVLT_repetitions$Trial_type2 <- MasterAVLT_repetitions$Trial_type
+
+MasterAVLT_repetitions$Trial_type2 <- recode_factor(MasterAVLT_repetitions$Trial_type2, "Trial 1" = "Learning")
+MasterAVLT_repetitions$Trial_type2 <- recode_factor(MasterAVLT_repetitions$Trial_type2, "Trial 2" = "Learning")
+MasterAVLT_repetitions$Trial_type2 <- recode_factor(MasterAVLT_repetitions$Trial_type2, "Trial 3" = "Learning")
+MasterAVLT_repetitions$Trial_type2 <- recode_factor(MasterAVLT_repetitions$Trial_type2, "Trial 4" = "Learning")
+MasterAVLT_repetitions$Trial_type2 <- recode_factor(MasterAVLT_repetitions$Trial_type2, "Trial 5" = "Learning")
+MasterAVLT_repetitions$Trial_type2 <- recode_factor(MasterAVLT_repetitions$Trial_type2, "Short delay" = "Delayed recall")
+MasterAVLT_repetitions$Trial_type2 <- recode_factor(MasterAVLT_repetitions$Trial_type2, "Long delay" = "Delayed recall")
+
+MasterAVLT_repetitionsPost <- MasterAVLT_repetitions %>% filter(!str_detect(PRE.POST, "Baseline"))
+MasterAVLT_repetitionsPre <- MasterAVLT_repetitions %>% filter(!str_detect(PRE.POST, "Post"))
+
+## Intrusions data
+
+removal_df2 <- subset(MasterAVLT_intrusions, Participant.ID != "P011" & Participant.ID != "P041")
+
+MasterAVLT_intrusions <- droplevels(removal_df2)
+
+MasterAVLT_intrusions$Trial_type2 <- MasterAVLT_intrusions$Trial_type
+
+MasterAVLT_intrusions$Trial_type2 <- recode_factor(MasterAVLT_intrusions$Trial_type2, "Trial 1" = "Learning")
+MasterAVLT_intrusions$Trial_type2 <- recode_factor(MasterAVLT_intrusions$Trial_type2, "Trial 2" = "Learning")
+MasterAVLT_intrusions$Trial_type2 <- recode_factor(MasterAVLT_intrusions$Trial_type2, "Trial 3" = "Learning")
+MasterAVLT_intrusions$Trial_type2 <- recode_factor(MasterAVLT_intrusions$Trial_type2, "Trial 4" = "Learning")
+MasterAVLT_intrusions$Trial_type2 <- recode_factor(MasterAVLT_intrusions$Trial_type2, "Trial 5" = "Learning")
+MasterAVLT_intrusions$Trial_type2 <- recode_factor(MasterAVLT_intrusions$Trial_type2, "Short delay" = "Delayed recall")
+MasterAVLT_intrusions$Trial_type2 <- recode_factor(MasterAVLT_intrusions$Trial_type2, "Long delay" = "Delayed recall")
+
+MasterAVLT_intrusionsPost <- MasterAVLT_intrusions %>% filter(!str_detect(PRE.POST, "Baseline"))
+MasterAVLT_intrusionsPre <- MasterAVLT_intrusions %>% filter(!str_detect(PRE.POST, "Post"))
+
+rm(removal_df, removal_df2)
+```
+
+
+
+```{r}
+# Publication plots
+
+AVLT_Accuracy_Plot <- MasterAVLT_accNAPost %>%
+  group_by(PRE.POST, Allocation, Trial_type) %>%
+  summarize(value = mean(Trial_Score), SE = std.error(Trial_Score)) %>%
+  ggplot(aes(Trial_type, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Trial_type, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.4, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.1) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Total words recalled\n") +
+  xlab(" ") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45))
+
+AVLT_Intrusions_Plot <- MasterAVLT_intrusionsPost %>%
+  group_by(PRE.POST, Allocation, Trial_type) %>%
+  summarize(value = mean(Trial_Score), SE = std.error(Trial_Score)) %>%
+  ggplot(aes(Trial_type, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Trial_type, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.4, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.1) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Mean intrusions\n") +
+  xlab(" ") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45))
+
+AVLT_Repititions_Plot <- MasterAVLT_repetitionsPost %>%
+  group_by(PRE.POST, Allocation, Trial_type) %>%
+  summarize(value = mean(Trial_Score), SE = std.error(Trial_Score)) %>%
+  ggplot(aes(Trial_type, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Trial_type, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.4, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.1) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Mean repetitions\n") +
+  xlab("AVLT Trial Type\n") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45))
+
+CombinedPlots <- plot_grid(AVLT_Accuracy_Plot, AVLT_Intrusions_Plot, AVLT_Repititions_Plot, align = "v", ncol = 1, labels = c("A", "B", "C"))
+
+## Baseline versions
+
+AVLT_Accuracy_Plot <- MasterAVLT_accNAPre %>%
+  group_by(PRE.POST, Allocation, Trial_type) %>%
+  summarize(value = mean(Trial_Score), SE = std.error(Trial_Score)) %>%
+  ggplot(aes(Trial_type, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Trial_type, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.4, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.1) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Total words recalled\n") +
+  xlab(" ") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45))
+
+AVLT_Intrusions_Plot <- MasterAVLT_intrusionsPre %>%
+  group_by(PRE.POST, Allocation, Trial_type) %>%
+  summarize(value = mean(Trial_Score), SE = std.error(Trial_Score)) %>%
+  ggplot(aes(Trial_type, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Trial_type, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.4, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.1) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Mean intrusions\n") +
+  xlab(" ") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  theme(legend.position = "none", axis.text.x = element_text(angle = 45))
+
+AVLT_Repititions_Plot <- MasterAVLT_repetitionsPre %>%
+  group_by(PRE.POST, Allocation, Trial_type) %>%
+  summarize(value = mean(Trial_Score), SE = std.error(Trial_Score)) %>%
+  ggplot(aes(Trial_type, value, group = Allocation)) +
+  scale_color_brewer(palette = "Set2") +
+  geom_errorbar(aes(x = Trial_type, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.4, alpha = 0.8) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 1.1) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05
+  ) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  labs(title = "") +
+  ylab("Mean repetitions\n") +
+  xlab("AVLT Trial Type\n") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45))
+
+CombinedPlots <- plot_grid(AVLT_Accuracy_Plot, AVLT_Intrusions_Plot, AVLT_Repititions_Plot, align = "v", ncol = 1, labels = c("A", "B", "C"))
+
+## Publication main graph
+
+MasterAVLT_accNAPost$Trial_type2 <- fct_relevel(MasterAVLT_accNAPost$Trial_type2, "Learning", "Novel trial", "Delayed recall")
+
+AVLT_Accuracy_Plot <- MasterAVLT_accNAPost %>%
+  group_by(Allocation, Trial_type2) %>%
+  summarize(value = mean(Trial_Score) / 15 * 100, SE = std.error(Trial_Score) / 15 * 100) %>%
+  ggplot(aes(Trial_type2, value, group = Allocation)) +
+  geom_errorbar(aes(x = Trial_type2, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 0.6) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.75, alpha = 0.8) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  ylim(50, 100) +
+  labs(title = " ") +
+  ylab("Total words recalled (%)\n") +
+  xlab("AVLT phase\n") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45)) +
+  geom_segment(aes(x = 3.2, y = 85.7, xend = 3.2, yend = 91.5, group = "segment")) +
+  geom_segment(aes(x = 3.17, y = 85.7, xend = 3.20, yend = 85.7, group = "segment")) +
+  geom_segment(aes(x = 3.17, y = 91.5, xend = 3.20, yend = 91.5, group = "segment")) +
+  geom_text(aes(x = 3.24, label = "*", y = 88.1), colour = "Black", size = 5.2)
+```
+
+
+
+
+```{r pressure, echo=FALSE}
+###########################
+## Total correct analyses
+###########################
+
+ANCOdf1 <- MasterAVLT_accNAPost[c("Allocation", "Participant.ID", "Trial_Score", "Trial_type2", "Gender")]
+
+ANCOdf1 <- rename(ANCOdf1, Trial_ScorePost = Trial_Score)
+
+ANCOdf2 <- MasterAVLT_accNAPre[c("Allocation", "Participant.ID", "Trial_Score", "Trial_type2", "Gender")]
+
+ANCOdf2 <- rename(ANCOdf2, Trial_ScorePre = Trial_Score)
+
+ANCOdfcomp <- left_join(ANCOdf1, ANCOdf2, by = c("Participant.ID", "Allocation", "Trial_type2", "Gender"))
+
+Trialscore_post <- aov(Trial_ScorePost ~ Allocation + Trial_type2 + Trial_ScorePre + Allocation * Trial_type2 + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(Trialscore_pre)
+summary(Trialscore_post)
+
+ANCOdfcomp %>%
+  group_by(Trial_type2) %>%
+  emmeans_test(Trial_ScorePost ~ Allocation, p.adjust.method = "holm", detailed = TRUE)
+
+ANCOdfcomp %>%
+  group_by(Trial_type2, Allocation) %>%
+  get_summary_stats(Trial_ScorePost, type = "mean_sd")
+
+####
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(Trial_ScorePost ~ Allocation + Gender + Allocation:Gender + Trial_type2 + Allocation:Trial_type2 + Allocation:Trial_type2:Gender + Trial_ScorePre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(Trial_ScorePost, type = "mean_sd")
+
+###########################
+## Total repetition analyses
+###########################
+
+ANCOdf3 <- MasterAVLT_repetitionsPost[c("Allocation", "Participant.ID", "Trial_Score", "Trial_type2", "Gender")]
+
+ANCOdf3 <- rename(ANCOdf3, Trial_ScorePost = Trial_Score)
+
+ANCOdf4 <- MasterAVLT_repetitionsPre[c("Allocation", "Participant.ID", "Trial_Score", "Trial_type2", "Gender")]
+
+ANCOdf4 <- rename(ANCOdf4, Trial_ScorePre = Trial_Score)
+
+ANCOdfcomp2 <- left_join(ANCOdf3, ANCOdf4, by = c("Participant.ID", "Allocation", "Trial_type2", "Gender"))
+
+Repetitions_post <- aov(Trial_ScorePost ~ Allocation + Trial_type2 + Trial_ScorePre + Allocation:Trial_type2 + Error(Participant.ID), data = ANCOdfcomp2)
+
+summary(Repetitions_post)
+
+ANCOdfcomp2 %>%
+  group_by(Trial_type2) %>%
+  emmeans_test(Trial_ScorePre ~ Allocation, p.adjust.method = "holm", detailed = TRUE)
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(Trial_ScorePost ~ Allocation + Gender + Allocation:Gender + Trial_type2 + Allocation:Trial_type2 + Allocation:Trial_type2:Gender + Trial_ScorePre + Error(Participant.ID), data = ANCOdfcomp2)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf3 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(Trial_ScorePost, type = "mean_sd")
+
+ANCOdfcomp2 %>%
+  group_by(Trial_type2, Gender) %>%
+  emmeans_test(Trial_ScorePost ~ Allocation, p.adjust.method = "holm", detailed = TRUE)
+####
+
+ANCOdfcomp2 %>%
+  emmeans_test(Trial_ScorePost ~ Gender, p.adjust.method = "holm", detailed = TRUE)
+
+####
+
+lm_model <- lmer(Trial_ScorePost ~ Allocation + Trial_type2 + Allocation:Trial_type2 + Trial_ScorePre + Gender + Gender:Allocation + Gender:Allocation:Trial_type2 + (1 | Participant.ID), data = ANCOdfcomp2)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Calculate estimated marginal means (EMMs) for Allocation effect
+
+lm_model <- lm(Trial_ScorePost ~ Allocation + Trial_type2 + Allocation:Trial_type2 + Trial_ScorePre + Gender + Gender:Allocation + Gender:Allocation:Trial_type2, data = ANCOdfcomp2)
+EMM_2 <- emmeans(lm_model, ~Gender)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+
+
+###
+
+# Not significant.
+
+###########################
+## Total intrusion analyses
+###########################
+
+ANCOdf5 <- MasterAVLT_intrusionsPost[c("Allocation", "Participant.ID", "Trial_Score", "Trial_type2", "Gender")]
+
+ANCOdf5 <- rename(ANCOdf5, Trial_ScorePost = Trial_Score)
+
+ANCOdf6 <- MasterAVLT_intrusionsPre[c("Allocation", "Participant.ID", "Trial_Score", "Trial_type2", "Gender")]
+
+ANCOdf6 <- rename(ANCOdf6, Trial_ScorePre = Trial_Score)
+
+ANCOdfcomp3 <- left_join(ANCOdf5, ANCOdf6, by = c("Participant.ID", "Allocation", "Trial_type2", "Gender"))
+
+Intrusions_post <- aov(Trial_ScorePost ~ Allocation + Trial_type2 + Trial_ScorePre + Allocation * Trial_type2 + Error(Participant.ID), data = ANCOdfcomp3)
+
+summary(Intrusions_pre)
+summary(Intrusions_post)
+
+# No effects
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(Trial_ScorePost ~ Allocation + Gender + Allocation:Gender + Trial_type2 + Allocation:Trial_type2 + Allocation:Trial_type2:Gender + Trial_ScorePre + Error(Participant.ID), data = ANCOdfcomp3)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf5 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(Trial_ScorePost, type = "mean_sd")
+
+ANCOdfcomp3 %>%
+  group_by(Trial_type2, Gender) %>%
+  emmeans_test(Trial_ScorePost ~ Allocation, p.adjust.method = "holm", detailed = TRUE)
+
+###
+
+lm_model <- lmer(Trial_ScorePost ~ Allocation + Trial_type2 + Allocation:Trial_type2 + Trial_ScorePre + Gender + Gender:Allocation + Gender:Allocation:Trial_type2 + (1 | Participant.ID), data = ANCOdfcomp3)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Calculate estimated marginal means (EMMs) for Allocation effect
+
+lm_model <- lm(Trial_ScorePost ~ Allocation + Trial_type2 + Allocation:Trial_type2 + Trial_ScorePre + Gender + Gender:Allocation + Gender:Allocation:Trial_type2, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~ Allocation | Gender)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+
+####################
+```

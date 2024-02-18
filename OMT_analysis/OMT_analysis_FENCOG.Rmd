@@ -1,0 +1,998 @@
+---
+title: "OMT_Analysis_FENCOG"
+author: "mcolwellel Colwell"
+date: '2022-07-25'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Quality check and analysis scripts for OMT data in FENCOG project.
+
+```{r libraries, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gtools)
+library(knitr)
+library(data.table)
+library(ggplot2)
+library(car)
+library(ggbeeswarm)
+library(ggrepel)
+library(readxl)
+library(data.table)
+library(openxlsx)
+library(ggpubr)
+library(sdamr)
+library(rstatix)
+library("ez")
+library(ggsignif)
+library(RColorBrewer)
+library(emmeans)
+library(plotrix)
+library(sdamr)
+library(cowplot)
+library(psycho)
+library(ggridges)
+library(viridis)
+library(ggstance)
+library(ggdist)
+library(gghalves)
+library(ggpp)
+library(effectsize)
+library(lme4)
+library(lmerTest)
+```
+
+## Set Dir and load in file
+
+```{r b0, echo=FALSE, include=TRUE}
+setwd("C:/Users/micha/Desktop/OMT_analysis")
+
+MasterOMT <- read.csv("C:/Users/micha/Desktop/OMT_analysis/OMT_data_file.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+##Generate Report for outlier analysis
+
+```{r b0, echo=FALSE, include=TRUE}
+OMT_Summary_outliers <- MasterOMT
+
+OMT_Summary_outliers <- OMT_Summary_outliers %>% mutate(CorrectProbes = ProportionCorrect_1item_4secs + ProportionCorrect_3items_4secs)
+
+OMT_Summary_outliers <- OMT_Summary_outliers %>% mutate(AbsoluteErrors = AbsoluteError_1item_4secs + AbsoluteError_3items_4secs)
+
+OMT_Summary_outliers <- OMT_Summary_outliers %>% mutate(MisbindingErrors = Misbinding_Simple_3items_4secs)
+
+OMT_Summary_outliers <- OMT_Summary_outliers %>% mutate(IdentifyRT = IdentificationTime_1item_4secs + IdentificationTime_3items_4secs)
+
+OMT_Summary_outliers <- OMT_Summary_outliers %>% mutate(DraggingRT = LocalisationTime_1item_4secs + LocalisationTime_3items_4secs)
+
+OMT_Summary_outliers <- OMT_Summary_outliers %>%
+  group_by(Participant.ID, Visit) %>%
+  summarise(CorrectProbes = sum(CorrectProbes), AbsoluteErrors = sum(AbsoluteErrors), MisbindingErrors = sum(MisbindingErrors), IdentifyRT = sum(IdentifyRT), DraggingRT = sum(DraggingRT))
+
+OMT_Summary_outliers <- OMT_Summary_outliers[-c(1), ]
+```
+##Parsing + Demographic inclusion
+
+```{r b0, echo=FALSE, include=TRUE}
+OMT_Absolute <- MasterOMT %>% pivot_longer(cols = starts_with("Absolute"), names_to = "AbsoluteErrorSet", values_to = "AbsoluteErrorValue", values_drop_na = TRUE)
+
+OMT_Misbinding <- MasterOMT %>% pivot_longer(cols = starts_with("Misbinding"), names_to = "MisbindingSet", values_to = "MisbindingValue", values_drop_na = FALSE)
+
+OMT_Guessing <- MasterOMT %>% pivot_longer(cols = starts_with("Guessing"), names_to = "GuessingSet", values_to = "GuessingValue", values_drop_na = TRUE)
+
+OMT_Target <- MasterOMT %>% pivot_longer(cols = starts_with("Target"), names_to = "TargetSet", values_to = "TargetValue", values_drop_na = TRUE)
+
+OMT_Identification <- MasterOMT %>% pivot_longer(cols = starts_with("Identification"), names_to = "IdentificationSet", values_to = "IdentificationValue", values_drop_na = TRUE)
+
+OMT_Localisation <- MasterOMT %>% pivot_longer(cols = starts_with("Localisation"), names_to = "LocalisationSet", values_to = "LocalisationValue", values_drop_na = TRUE)
+
+OMT_Proportion <- MasterOMT %>% pivot_longer(cols = starts_with("Proportion"), names_to = "ProportionSet", values_to = "ProportionValue", values_drop_na = TRUE)
+
+OMT_Imprecision <- MasterOMT %>% pivot_longer(cols = starts_with("Imprecision"), names_to = "ImprecisionSet", values_to = "ImprecisionValue", values_drop_na = TRUE)
+
+OMT_Master_C <- OMT_Absolute[c("Participant.ID", "Visit", "AbsoluteErrorSet", "AbsoluteErrorValue")]
+
+OMT_Master_C$MisbindingSet <- OMT_Misbinding$MisbindingSet
+OMT_Master_C$MisbindingValue <- OMT_Misbinding$MisbindingValue
+OMT_Master_C$GuessingSet <- OMT_Guessing$GuessingSet
+OMT_Master_C$GuessingValue <- OMT_Guessing$GuessingValue
+OMT_Master_C$TargetSet <- OMT_Target$TargetSet
+OMT_Master_C$TargetValue <- OMT_Target$TargetValue
+OMT_Master_C$IdentificationSet <- OMT_Identification$IdentificationSet
+OMT_Master_C$IdentificationValue <- OMT_Identification$IdentificationValue
+OMT_Master_C$LocalisationSet <- OMT_Localisation$LocalisationSet
+OMT_Master_C$LocalisationValue <- OMT_Localisation$LocalisationValue
+OMT_Master_C$ProportionSet <- OMT_Proportion$ProportionSet
+OMT_Master_C$ProportionValue <- OMT_Proportion$ProportionValue
+OMT_Master_C$ImprecisionSet <- OMT_Imprecision$ImprecisionSet
+OMT_Master_C$ImprecisionValue <- OMT_Imprecision$ImprecisionValue
+
+OMT_Master_C$SetF <- recode_factor(OMT_Master_C$MisbindingSet, "Misbinding_Simple_1item_4secs" = "Set One")
+OMT_Master_C$SetF <- recode_factor(OMT_Master_C$SetF, "Misbinding_Simple_3items_4secs" = "Set Two")
+
+OMT_Master_C$AbsoluteErrorSet <- NULL
+OMT_Master_C$MisbindingSet <- NULL
+OMT_Master_C$GuessingSet <- NULL
+OMT_Master_C$TargetSet <- NULL
+OMT_Master_C$IdentificationSet <- NULL
+OMT_Master_C$LocalisationSet <- NULL
+OMT_Master_C$ProportionSet <- NULL
+OMT_Master_C$ImprecisionSet <- NULL
+
+rm(OMT, Demographics, MasterOMT, removal_df, OMT_Target, OMT_Proportion, OMT_Misbinding, OMT_Localisation, OMT_Imprecision, OMT_Identification, OMT_Guessing, OMT_Absolute)
+
+## Demographics
+
+setwd("C:/Users/micha/Desktop/DemographicData")
+
+Demographics <- read.xlsx("Demo4Analysis.xlsx")
+
+Demographics$Participant.ID <- as.factor(Demographics$Participant.ID)
+
+OMT_Master_C <- merge(OMT_Master_C, Demographics, by = "Participant.ID")
+
+# Removal of participants who did not engage with the task as instructed at at least one
+# visit.
+
+removal_df <- subset(OMT_Master_C, Participant.ID != "P015" & Participant.ID != "P018")
+
+OMT_Master_C <- droplevels(removal_df)
+
+# Split by PRE/POST
+
+OMT_Master_CPost <- OMT_Master_C %>% filter(!str_detect(Visit, "PRE"))
+OMT_Master_CPre <- OMT_Master_C %>% filter(!str_detect(Visit, "POST"))
+
+rm(OMT, Demographics, MasterOMT, removal_df, OMT_Target, OMT_Proportion, OMT_Misbinding, OMT_Localisation, OMT_Imprecision, OMT_Identification, OMT_Guessing, OMT_Absolute)
+```
+
+##Generate Boxplots for Outlier Identification
+
+```{r b0, echo=FALSE, include=TRUE}
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+OMT_Master_CPost %>%
+  group_by(Allocation) %>%
+  mutate(outlier = ifelse(is_outlier(IdentificationValue), as.factor(Allocation), as.numeric(NA))) %>%
+  ggplot(aes(x = factor(SetF), LocalisationValue)) +
+  scale_x_discrete(limits = rev(levels(OMT_Master_CPost$Visit))) +
+  geom_boxplot(outlier.colour = NA) +
+  ggbeeswarm::geom_beeswarm(aes(color = IdentificationValue)) +
+  ggrepel::geom_text_repel(data = . %>% filter(!is.na(outlier)), aes(label = Participant.ID)) +
+  scale_colour_gradient(low = "blue", high = "red") +
+  labs(title = "Participant average correct probes (OMT)") +
+  ylab("No. Correct Probes") +
+  xlab("Visit Pre or Post")
+
+# Etc.
+```
+
+
+```{r b0, echo=FALSE, include=TRUE}
+# ANCOVA model setup and analysis
+
+## ANCOVA MODELS##
+
+ANCOdf1 <- OMT_Master_CPost[c("Allocation", "Participant.ID", "SetF", "AbsoluteErrorValue", "MisbindingValue", "GuessingValue", "TargetValue", "IdentificationValue", "LocalisationValue", "ProportionValue", "ImprecisionValue", "Gender")]
+
+ANCOdf1 <- rename(ANCOdf1, AbsoluteErrorValuePost = AbsoluteErrorValue)
+ANCOdf1 <- rename(ANCOdf1, MisbindingPost = MisbindingValue)
+ANCOdf1 <- rename(ANCOdf1, GuessingPost = GuessingValue)
+ANCOdf1 <- rename(ANCOdf1, TargetPost = TargetValue)
+ANCOdf1 <- rename(ANCOdf1, IdentificationPost = IdentificationValue)
+ANCOdf1 <- rename(ANCOdf1, LocalisationPost = LocalisationValue)
+ANCOdf1 <- rename(ANCOdf1, ProportionPost = ProportionValue)
+ANCOdf1 <- rename(ANCOdf1, ImprecisionPost = ImprecisionValue)
+
+ANCOdf2 <- OMT_Master_CPre[c("Allocation", "Participant.ID", "SetF", "AbsoluteErrorValue", "MisbindingValue", "GuessingValue", "TargetValue", "IdentificationValue", "LocalisationValue", "ProportionValue", "ImprecisionValue", "Gender")]
+
+ANCOdf2 <- rename(ANCOdf2, AbsoluteErrorValuePre = AbsoluteErrorValue)
+ANCOdf2 <- rename(ANCOdf2, MisbindingPre = MisbindingValue)
+ANCOdf2 <- rename(ANCOdf2, GuessingPre = GuessingValue)
+ANCOdf2 <- rename(ANCOdf2, TargetPre = TargetValue)
+ANCOdf2 <- rename(ANCOdf2, IdentificationPre = IdentificationValue)
+ANCOdf2 <- rename(ANCOdf2, LocalisationPre = LocalisationValue)
+ANCOdf2 <- rename(ANCOdf2, ProportionPre = ProportionValue)
+ANCOdf2 <- rename(ANCOdf2, ImprecisionPre = ImprecisionValue)
+
+ANCOdfcomp <- left_join(ANCOdf1, ANCOdf2, by = c("Participant.ID", "Allocation", "Gender"))
+
+# Model 1 - Absolute Error
+
+ANCOVA_post_Error <- aov(AbsoluteErrorValuePost ~ Allocation + AbsoluteErrorValuePre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_Error)
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(AbsoluteErrorValuePost, type = "mean_sd")
+
+# Baseline check
+
+ANCOVA_pre_Error <- aov(AbsoluteErrorValuePre ~ Allocation + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_pre_Error)
+
+ANCOdf2 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(AbsoluteErrorValuePre, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(AbsoluteErrorValuePost ~ Allocation + Gender + Allocation:Gender + AbsoluteErrorValuePre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(AbsoluteErrorValuePost, type = "mean_sd")
+
+
+### Nil model###
+
+# Model 2 - Misbinding
+
+ANCOVA_post_misbinding <- aov(MisbindingPost ~ Allocation + MisbindingPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_misbinding)
+
+ANCOdfcomp %>%
+  group_by(Allocation) %>%
+  get_summary_stats(MisbindingPost, type = "mean_sd")
+
+# Baseline check
+
+ANCOVA_pre_Error <- aov(MisbindingPre ~ Allocation + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_pre_Error)
+
+ANCOdf2 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(MisbindingPre, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(MisbindingPost ~ Allocation + Gender + Allocation:Gender + MisbindingPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(MisbindingPost, type = "mean_sd")
+
+
+### Nil model###
+
+# Model 3 - Guessing
+
+ANCOVA_post_guessing <- aov(GuessingPost ~ Allocation + GuessingPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_guessing)
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(GuessingPost, type = "mean_sd")
+
+# Baseline check
+
+ANCOVA_pre_Error <- aov(GuessingPre ~ Allocation + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_pre_Error)
+
+ANCOdf2 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(GuessingPre, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(GuessingPost ~ Allocation + Gender + Allocation:Gender + GuessingPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(GuessingPost, type = "mean_sd")
+
+### Nil model###
+
+# Model 4 - Targeting
+
+ANCOVA_post_targeting <- aov(TargetPost ~ Allocation + TargetPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_targeting)
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(TargetPost, type = "mean_sd")
+
+# Baseline check
+
+ANCOVA_pre_Error <- aov(TargetPre ~ Allocation + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_pre_Error)
+
+ANCOdf2 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(TargetPre, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(TargetPost ~ Allocation + Gender + Allocation:Gender + TargetPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(TargetPost, type = "mean_sd")
+
+### Nil model###
+
+# Model 5 - Identification
+
+ANCOVA_post_identification <- aov(IdentificationPost ~ Allocation + IdentificationPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_identification)
+
+lm_model <- lmer(IdentificationPost ~ Allocation + IdentificationPre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+###
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(IdentificationPost, type = "mean_sd")
+
+ANCOdfcomp %>%
+  emmeans_test(IdentificationPost ~ Allocation, p.adjust.method = "holm", detailed = TRUE)
+
+# Significant ANCOVA but did not reach statistical significance post hoc. Nil model#
+
+# Baseline check
+
+ANCOVA_pre_Error <- aov(IdentificationPre ~ Allocation + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_pre_Error)
+
+ANCOdf2 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(IdentificationPre, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(IdentificationPost ~ Allocation + Gender + Allocation:Gender + IdentificationPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(IdentificationPost, type = "mean_sd")
+
+# Model 6 - Localisation
+
+ANCOVA_post_localisation <- aov(LocalisationPost ~ Allocation + LocalisationPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_localisation)
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(LocalisationPost, type = "mean_sd")
+
+# Baseline check
+
+ANCOVA_pre_Error <- aov(LocalisationPre ~ Allocation + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_pre_Error)
+
+ANCOdf2 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(LocalisationPre, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(LocalisationPost ~ Allocation + Gender + Allocation:Gender + LocalisationPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(LocalisationPost, type = "mean_sd")
+
+### Nil model###
+
+# Model 7 - Proportion correct
+
+ANCOVA_post_proportion <- aov(ProportionPost ~ Allocation + ProportionPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_proportion)
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(ProportionPost, type = "mean_sd")
+
+# Baseline check
+
+ANCOVA_pre_Error <- aov(ProportionPre ~ Allocation + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_pre_Error)
+
+ANCOdf2 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(ProportionPre, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(ProportionPost ~ Allocation + Gender + Allocation:Gender + ProportionPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(ProportionPost, type = "mean_sd")
+
+### Nil model###
+
+ANCOVA_post_imprecision <- aov(ImprecisionPost ~ Allocation + ImprecisionPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_imprecision)
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(ImprecisionPost, type = "mean_sd")
+
+
+# Baseline check
+
+ANCOVA_pre_Error <- aov(ImprecisionPre ~ Allocation + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_pre_Error)
+
+ANCOdf2 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(ImprecisionPre, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(ImprecisionPost ~ Allocation + Gender + Allocation:Gender + ImprecisionPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(ImprecisionPost, type = "mean_sd")
+
+### Nil model###
+```
+
+
+```{r b0, echo=FALSE, include=TRUE}
+# Figures
+
+Boxplot_AbsoluteError <- OMT_Master_CPost %>% ggplot(aes(x = Allocation, y = AbsoluteErrorValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Absolute Error (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_MissBind <- OMT_Master_CPost %>% ggplot(aes(x = Allocation, y = MisbindingValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Misbinding Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Guessing <- OMT_Master_CPost %>% ggplot(aes(x = Allocation, y = GuessingValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Guessing Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Target <- OMT_Master_CPost %>% ggplot(aes(x = Allocation, y = TargetValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Target Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Identification <- OMT_Master_CPost %>% ggplot(aes(x = Allocation, y = IdentificationValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Time to identification (sec)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Localisation <- OMT_Master_CPost %>% ggplot(aes(x = Allocation, y = LocalisationValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Time to localisation (sec)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Prop <- OMT_Master_CPost %>% ggplot(aes(x = Allocation, y = ProportionValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Proportion Correct Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Impreci <- OMT_Master_CPost %>% ggplot(aes(x = Allocation, y = ImprecisionValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Imprecision Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+#############
+
+CombinedPlots_followup <- plot_grid(Boxplot_AbsoluteError, Boxplot_MissBind, Boxplot_Guessing, Boxplot_Target, Boxplot_Identification, Boxplot_Localisation, Boxplot_Prop, Boxplot_Impreci, align = "v", ncol = 4, label_size = 20)
+
+#########
+
+Boxplot_AbsoluteError <- OMT_Master_CPre %>% ggplot(aes(x = Allocation, y = AbsoluteErrorValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Absolute Error (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_MissBind <- OMT_Master_CPre %>% ggplot(aes(x = Allocation, y = MisbindingValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Misbinding Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Guessing <- OMT_Master_CPre %>% ggplot(aes(x = Allocation, y = GuessingValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Guessing Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Target <- OMT_Master_CPre %>% ggplot(aes(x = Allocation, y = TargetValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Target Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Identification <- OMT_Master_CPre %>% ggplot(aes(x = Allocation, y = IdentificationValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Time to identification (sec)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Localisation <- OMT_Master_CPre %>% ggplot(aes(x = Allocation, y = LocalisationValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Time to localisation (sec)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Prop <- OMT_Master_CPre %>% ggplot(aes(x = Allocation, y = ProportionValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Proportion Correct Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+Boxplot_Impreci <- OMT_Master_CPre %>% ggplot(aes(x = Allocation, y = ImprecisionValue, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Imprecision Value (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+####
+
+CombinedPlots_baseline <- plot_grid(Boxplot_AbsoluteError, Boxplot_MissBind, Boxplot_Guessing, Boxplot_Target, Boxplot_Identification, Boxplot_Localisation, Boxplot_Prop, Boxplot_Impreci, align = "v", ncol = 4, label_size = 20)
+```

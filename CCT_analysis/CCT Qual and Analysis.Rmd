@@ -1,0 +1,417 @@
+---
+title: "CCT Analysis FENCOG"
+author: "Michael Colwell"
+date: '2022-07-28'
+output: html_document
+---
+
+#Preprocessing script for Contextual Cueing Task (CCT) made by Michael Colwell (michael.colwell@psych.ox.ac.uk).
+
+```{r setup, include=FALSE}
+```
+
+## Essential libraries chunk
+
+```{r libraries, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gtools)
+library(knitr)
+library(data.table)
+library(ggplot2)
+library(car)
+library(ggbeeswarm)
+library(ggrepel)
+library(readxl)
+library(data.table)
+library(openxlsx)
+library(ggpubr)
+library(rstatix)
+library("ez")
+library(ggsignif)
+library(RColorBrewer)
+library(emmeans)
+library(plotrix)
+library(sdamr)
+library(cowplot)
+library(lme4)
+library(stringr)
+library(effectsize)
+library(lmerTest)
+library(sdamr)
+library(cowplot)
+library(lme4)
+library(stringr)
+library(ggridges)
+library(viridis)
+library(stringr)
+library(effectsize)
+library(lmerTest)
+library(ggdist)
+```
+
+##Load in file and start preprocessing
+
+```{r pressure, echo=FALSE}
+setwd("C:/Users/micha/Desktop/CCT_analysis")
+
+CCT_files <- list.files(pattern = glob2rx("*P*.xlsx")) # search for csv files with this string in one folder
+
+library(plyr)
+
+CCT <- do.call(rbind.fill, lapply(CCT_files, function(x) read.xlsx(x)))
+
+detach("package:plyr", unload = TRUE)
+
+CCT$RT <- gsub("NaN", "NA", CCT$RT)
+
+CCT$RT <- as.numeric(CCT$RT)
+
+CCT <- CCT %>%
+  mutate(RT = RT * 1000)
+
+CCT$Repeat <- as.factor(CCT$Repeat)
+
+CCT$Repeat <- ifelse(CCT$Repeat == 1, "Repeated", ifelse(CCT$Repeat == 2, "Novel", "NA"))
+# 1=repeated, 2=novel
+
+## Filter premature and significantly delayed responses (the latter will not matter as stimuli do not stay on screen longer than 5000ms)
+
+CCT <- CCT %>% filter(RT < 2500 & RT > 200)
+
+## Create column for response time on correct items only + remove upper and lower limits
+
+CCT <- CCT %>% mutate(RTCorrect = ifelse(Correct == 1, RT, NA))
+
+CCT <- CCT %>% mutate(RTincorrect = ifelse(Correct == 0, RT, NA))
+
+CCT <- CCT %>% mutate(Task_stage = case_when(
+  (Block == 1) ~ "1",
+  (Block == 2) ~ "1",
+  (Block == 3) ~ "2",
+  (Block == 4) ~ "2",
+  TRUE ~ "NA"
+))
+
+####
+```
+
+##Generate Qual check report + plots to identify outliers
+
+```{r pressure, echo=FALSE}
+# create overall summary for identifying outliers
+
+CCT_Outlier_Report <- CCT %>%
+  group_by(ID, PRE.POST) %>%
+  summarise(RTmean = mean(RT, na.rm = TRUE), TotalCorrect = sum(Correct))
+
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+
+CCT_Outlier_Report %>%
+  group_by(PRE.POST) %>%
+  mutate(outlier = ifelse(is_outlier(RTmean), PRE.POST, as.numeric(NA))) %>%
+  ggplot(aes(x = factor(PRE.POST), RTmean)) +
+  scale_x_discrete(limits = rev(levels(CCT_Outlier_Report$PRE.POST))) +
+  geom_boxplot(outlier.colour = NA) +
+  ggbeeswarm::geom_beeswarm(aes(color = RTmean)) +
+  ggrepel::geom_text_repel(data = . %>% filter(!is.na(outlier)), aes(label = ID)) +
+  scale_colour_gradient(low = "blue", high = "red") +
+  labs(title = "Participant average of response time (ms) across all trials") +
+  ylab("Response time") +
+  xlab("PRE or POST")
+
+ggplot(CCT_Outlier_Report, aes(x = RTmean)) +
+  geom_histogram() +
+  xlab("Response time") +
+  ylab("Frequency") +
+  labs(title = "Participant average response time across all trials")
+
+CCT_Outlier_Report %>%
+  group_by(PRE.POST) %>%
+  mutate(outlier = ifelse(is_outlier(TotalCorrect), PRE.POST, as.numeric(NA))) %>%
+  ggplot(aes(x = factor(PRE.POST), TotalCorrect)) +
+  scale_x_discrete(limits = rev(levels(CCT_Outlier_Report$PRE.POST))) +
+  geom_boxplot(outlier.colour = NA) +
+  ggbeeswarm::geom_beeswarm(aes(color = TotalCorrect)) +
+  ggrepel::geom_text_repel(data = . %>% filter(!is.na(outlier)), aes(label = ID)) +
+  scale_colour_gradient(low = "blue", high = "red") +
+  labs(title = "Participant average accuracy through all trials (blocks 1-4) including repeated and novel stim") +
+  ylab("Accuracy") +
+  xlab("PRE or POST")
+```
+
+#Generate reports for inferrential analysis + cleaning + adding in allocation data
+
+```{r pressure, echo=FALSE}
+## Getting accuracy difference (Cued minus novel)
+
+CCT_Analysis_Report <- CCT %>%
+  group_by(ID, PRE.POST, Task_stage, Repeat) %>%
+  summarise(CorrectChoices = sum(Correct, na.rm = TRUE))
+
+CCT_Analysis_Report <- CCT_Analysis_Report %>%
+  rename(Stimuli.type = "Repeat")
+
+CCT_Analysis_Report <- CCT_Analysis_Report %>% pivot_wider(names_from = Stimuli.type, values_from = CorrectChoices)
+
+CCT_Analysis_Report <- CCT_Analysis_Report %>% mutate(CorrectD = Repeated - Novel)
+
+CCT_Analysis_Report <- subset(CCT_Analysis_Report, select = -c(Repeated, Novel))
+
+## Getting response time difference (Cued minus novel)
+
+ReportAdder <- CCT %>%
+  group_by(ID, PRE.POST, Task_stage, Repeat) %>%
+  summarise(Response.time = mean(RT, na.rm = TRUE))
+
+ReportAdder <- ReportAdder %>% pivot_wider(names_from = Repeat, values_from = Response.time)
+
+ReportAdder <- ReportAdder %>% mutate(Response.timeD = Repeated - Novel)
+
+ReportAdder <- subset(ReportAdder, select = -c(Repeated, Novel))
+
+## Merge both dataframes for ease of analysis
+
+CCT_Analysis_Report <- merge(CCT_Analysis_Report, ReportAdder, by = c("ID", "Task_stage", "PRE.POST"))
+
+setwd("C:/Users/micha/Desktop/DemographicData")
+
+Demographics <- read.xlsx("Demo4Analysis.xlsx")
+
+Demographics$ID <- Demographics$Participant.ID
+
+Demographics$Participant.ID <- as.factor(Demographics$ID)
+
+CCT_Analysis_Report <- merge(CCT_Analysis_Report, Demographics, by = "ID")
+
+CCT_Analysis_Report$PRE.POST <- recode_factor(CCT_Analysis_Report$PRE.POST, "PRE" = "Baseline")
+
+CCT_Analysis_Report$PRE.POST <- recode_factor(CCT_Analysis_Report$PRE.POST, "POST" = "Post")
+
+rm(ReportAdder, Demographics)
+```
+
+```{r b0, echo=FALSE, include=TRUE}
+# Removal of all outliers from entire dataset (agreed before unblinding)
+
+CCT_Analysis_Report$IDvisit <- paste(CCT_Analysis_Report$ID, CCT_Analysis_Report$PRE.POST)
+
+## Pre-post split
+
+CCT_Analysis_ReportPost <- CCT_Analysis_Report %>% filter(!str_detect(PRE.POST, "Baseline"))
+
+CCT_Analysis_ReportPre <- CCT_Analysis_Report %>% filter(!str_detect(PRE.POST, "Post"))
+```
+
+
+
+
+```{r b0, echo=FALSE, include=TRUE}
+## Boxplot - CorrectChoices##
+
+CCT_Analysis_ReportPostLeveled <- CCT_Analysis_ReportPost %>%
+  group_by(ID, Allocation) %>%
+  summarise(CorrectD = mean(CorrectD, na.rm = TRUE), Response.timeD = mean(Response.timeD, na.rm = TRUE))
+
+Accuracy_boxplot <- CCT_Analysis_ReportPost %>% ggplot(aes(x = Allocation, y = CorrectD, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "**" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Accuracy difference (cued – novel trials)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 12), axis.title = element_text(size = 12), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+## Boxplot - Response.time (Correct items)##
+
+RT_Boxplot <- CCT_Analysis_ReportPost %>% ggplot(aes(x = Allocation, y = Response.timeD, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "**" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Response time difference (cued – novel trials) in ms\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 12), axis.title = element_text(size = 12), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+CombinedPlots <- plot_grid(Accuracy_boxplot, RT_Boxplot, labels = c("A", "B"))
+
+## Baseline plots
+
+CCT_Analysis_ReportPostLeveled2 <- CCT_Analysis_ReportPre %>%
+  group_by(ID, Allocation) %>%
+  summarise(CorrectD = mean(CorrectD, na.rm = TRUE), Response.timeD = mean(Response.timeD, na.rm = TRUE))
+
+## Boxplot - CorrectChoices##
+
+Accuracy_boxplot <- CCT_Analysis_ReportPre %>% ggplot(aes(x = Allocation, y = CorrectD, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "**" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Accuracy difference (cued – novel trials)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 12), axis.title = element_text(size = 12), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+## Boxplot - Response.time (Correct items)
+
+RT_Boxplot <- CCT_Analysis_ReportPre %>% ggplot(aes(x = Allocation, y = Response.timeD, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "**" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Response time difference (cued – novel trials) in ms\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 12), axis.title = element_text(size = 12), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+CombinedPlots <- plot_grid(Accuracy_boxplot, RT_Boxplot, labels = c("A", "B"))
+```
+
+```{r}
+# PREP ANCOVA MODELS#
+
+ANCOdf1 <- CCT_Analysis_ReportPost[c("Allocation", "Participant.ID", "CorrectD", "Response.timeD", "Task_stage", "Gender")]
+
+ANCOdf1 <- rename(ANCOdf1, CorrectPost = CorrectD)
+ANCOdf1 <- rename(ANCOdf1, GoRTmeanPost = Response.timeD)
+
+ANCOdf2 <- CCT_Analysis_ReportPre[c("Allocation", "Participant.ID", "CorrectD", "Response.timeD", "Task_stage", "Gender")]
+
+ANCOdf2 <- rename(ANCOdf2, CorrectPre = CorrectD)
+ANCOdf2 <- rename(ANCOdf2, GoRTmeanPre = Response.timeD)
+
+ANCOdfcomp <- left_join(ANCOdf1, ANCOdf2, by = c("Participant.ID", "Allocation", "Task_stage", "Gender"))
+
+# Accuracy analysis
+
+ANCOVA_post_Correct <- aov(CorrectPost ~ Allocation + CorrectPre + Task_stage + Allocation:Task_stage + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_Correct)
+
+# Not significant
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(CorrectPost ~ Allocation + Task_stage + Allocation * Task_stage + Gender + Gender:Allocation + Gender:Allocation:Task_stage + CorrectPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(CorrectPost, type = "mean_sd")
+
+### RT analysis
+
+ANCOVA_post_RT <- aov(GoRTmeanPost ~ Allocation + GoRTmeanPre + Task_stage + Allocation:Task_stage + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_RT)
+
+model_linear <- lmer(GoRTmeanPost ~ Allocation + Task_stage + Allocation:Task_stage + GoRTmeanPre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(model_linear, ci = 0.95, alternative = "two.sided")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(GoRTmeanPost ~ Allocation + Task_stage + Allocation * Task_stage + Gender + Gender:Allocation + Gender:Allocation:Task_stage + GoRTmeanPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(GoRTmeanPost, type = "mean_sd")
+
+# Not significant
+```

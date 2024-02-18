@@ -1,0 +1,132 @@
+---
+title: "Cortisol LMER"
+author: "Michael Colwell"
+date: "2022-11-14"
+output: html_document
+---
+
+
+```{r libraries, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gtools)
+library(knitr)
+library(data.table)
+library(ggplot2)
+library(car)
+library(ggbeeswarm)
+library(ggrepel)
+library(readxl)
+library(data.table)
+library(openxlsx)
+library(ggpubr)
+library(rstatix)
+library("ez")
+library(ggsignif)
+library(RColorBrewer)
+library(emmeans)
+library(plotrix)
+library(sdamr)
+library(cowplot)
+library(lme4)
+library(stringr)
+library(effectsize)
+library(lmerTest)
+library(ggridges)
+library(viridis)
+library(ggstance)
+library(ggdist)
+library(gghalves)
+library(ggpp)
+library(readxl)
+```
+
+
+
+```{r pressure, echo=FALSE}
+setwd("C:/Users/micha/Desktop/Cortisol_analysis/")
+
+CortisolM <- read.xlsx("Cortisols_results_FENCOG_all_samples_simple.xlsx")
+
+CortisolM_2 <- CortisolM
+
+setwd("C:/Users/micha/Desktop/DemographicData/")
+
+Demographics <- read.xlsx("Demo4Analysis.xlsx")
+
+Demographics$Participant.ID <- as.factor(Demographics$Participant.ID)
+
+CortisolM <- merge(CortisolM, Demographics, by = "Participant.ID")
+```
+
+```{r}
+Model1 <- with(CortisolM, lmer(MeanConc ~ Allocation + Time + Allocation:Time + (1 | Participant.ID),
+  control = lmerControl(optimizer = "bobyqa")
+))
+
+summary(Model1, conf.int = TRUE)
+print(Model1)
+
+CortisolM %>%
+  group_by(Allocation, Time) %>%
+  get_summary_stats(MeanConc, type = "mean_sd")
+
+CortisolM$Time <- as.factor(CortisolM$Time)
+
+ConcAnov <- ezANOVA(data = CortisolM, dv = MeanConc, between = Allocation, within = Time, wid = Participant.ID, return_aov = T)
+print(ConcAnov)
+
+# Columns to remove
+
+wide_data <- pivot_wider(CortisolM_2, names_from = Time, values_from = c("Values", "Std.Dev."))
+
+wide_data_merged <- merge(wide_data, Demographics, by = "Participant.ID")
+
+# ANCOVA analysis
+
+ANCOdf1 <- wide_data_merged[c("Allocation", "Participant.ID", "Values_2")]
+
+ANCOdf1 <- rename(ANCOdf1, Cortisol.Post = Values_2)
+
+ANCOdf2 <- wide_data_merged[c("Allocation", "Participant.ID", "Values_0")]
+
+ANCOdf2 <- rename(ANCOdf2, Cortisol.Pre = Values_0)
+
+ANCOdfcomp <- left_join(ANCOdf1, ANCOdf2, by = c("Participant.ID", "Allocation"))
+
+ANCOVA_Cortisol <- aov(Cortisol.Post ~ Allocation + Cortisol.Pre, data = ANCOdfcomp)
+
+summary(ANCOVA_Cortisol)
+```
+
+```{r}
+# Graph
+
+CortisolM$Time <- as.factor(CortisolM$Time)
+
+CortisolM$Time <- recode_factor(CortisolM$Time, "0" = "Time 0")
+CortisolM$Time <- recode_factor(CortisolM$Time, "1" = "Time 1")
+CortisolM$Time <- recode_factor(CortisolM$Time, "2" = "Time 2")
+
+CortisolM$Time <- factor(CortisolM$Time, levels = c("Time 0", "Time 1", "Time 2"))
+
+Cortisol_plot <- CortisolM %>%
+  group_by(Allocation, Time) %>%
+  summarize(value = mean(MeanConc), SE = std.error(MeanConc)) %>%
+  ggplot(aes(Time, value, group = Allocation)) +
+  geom_errorbar(aes(x = Time, ymin = value - SE, ymax = value + SE, color = Allocation), width = 0.25) +
+  geom_line(aes(color = Allocation, linetype = Allocation), size = 0.6) +
+  geom_point(aes(color = Allocation, shape = Allocation), size = 2.75, alpha = 0.8) +
+  geom_ribbon(aes(
+    ymin = value - SE,
+    ymax = value + SE, fill = Allocation
+  ), color = NA, alpha = 0.095, show.legend = FALSE) +
+  labs(title = " ") +
+  ylab("Mean concentration salivary cortisol (μg/dL)\n") +
+  xlab("\n") +
+  theme_minimal() +
+  scale_shape_manual(values = c(19, 15)) +
+  scale_color_brewer(palette = "Set2") +
+  scale_fill_brewer(palette = "Set2") +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, size = 12), axis.text.y = element_text(size = 12), axis.title.y = element_text(size = 14), axis.title.x = element_text(size = 14))
+```

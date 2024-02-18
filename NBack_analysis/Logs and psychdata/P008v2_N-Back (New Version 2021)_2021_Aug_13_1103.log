@@ -1,0 +1,677 @@
+0.8351 	WARNING 	We strongly recommend you activate the PTB sound engine in PsychoPy prefs as the preferred audio engine. Its timing is vastly superior. Your prefs are currently set to use ['sounddevice', 'PTB', 'pyo', 'pygame'] (in that order).
+37.3579 	WARNING 	User requested fullscreen with size [1536  864], but screen is actually [1920, 1080]. Using actual size
+41.7600 	EXP 	Created window1 = Window(allowGUI=False, allowStencil=False, autoLog=True, backendConf=UNKNOWN, bitsMode=UNKNOWN, blendMode='avg', bpc=(8, 8, 8), color=array([-1, -1, -1]), colorSpace='rgb', depthBits=8, fullscr=<method-wrapper '__getattribute__' of attributeSetter object at 0x0000028D6928E710>, gamma=None, gammaErrorPolicy='raise', lms=UNKNOWN, monitor=<psychopy.monitors.calibTools.Monitor object at 0x0000028D692B4EF0>, multiSample=False, name='window1', numSamples=2, pos=[0.0, 0.0], screen=0, size=array([1920, 1080]), stencilBits=0, stereo=False, units='height', useFBO=True, useRetina=False, viewOri=0.0, viewPos=None, viewScale=None, waitBlanking=True, winType='pyglet')
+41.7606 	EXP 	window1: mouseVisible = True
+41.7607 	EXP 	window1: recordFrameIntervals = False
+41.8421 	EXP 	window1: recordFrameIntervals = True
+41.9342 	EXP 	window1: recordFrameIntervals = False
+42.0119 	EXP 	window1: mouseVisible = False
+42.0263 	EXP 	Created TaskVersionText = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=-1.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='TaskVersionText', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0269 	EXP 	Created text = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='text', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0273 	EXP 	Created text_2 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='text_2', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0278 	EXP 	Created text_3 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='text_3', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0290 	EXP 	Created PractIn1 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=1.0, italic=False, languageStyle='LTR', name='PractIn1', opacity=1, ori=0.0, pos=array([ 0. , -0.1]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0295 	EXP 	Created PractIn2 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=-1.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=1.0, italic=False, languageStyle='LTR', name='PractIn2', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0299 	EXP 	Created PractBlock1 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=-4.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=1.0, italic=False, languageStyle='LTR', name='PractBlock1', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0303 	EXP 	Created ISI_Pract_Fixation = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([-1, -1, -1]), colorSpace='rgb', contrast=1.0, depth=-1.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='ISI_Pract_Fixation', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0317 	EXP 	Created N_backP = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.1, italic=False, languageStyle='LTR', name='N_backP', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0321 	EXP 	Created text_4 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='text_4', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0325 	EXP 	Created TransitionText = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='TransitionText', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0330 	EXP 	Created text_5 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='text_5', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0336 	EXP 	Created MainInt1 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([ 1, -1, -1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=1.0, italic=False, languageStyle='LTR', name='MainInt1', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0340 	EXP 	Created MainInt2 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=-1.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=1.0, italic=False, languageStyle='LTR', name='MainInt2', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0345 	EXP 	Created Blocks1 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([-1.        ,  0.00392157, -1.        ]), colorSpace='rgb', contrast=1.0, depth=-4.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=1.0, italic=False, languageStyle='LTR', name='Blocks1', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0349 	EXP 	Created ISI_Main = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([-1, -1, -1]), colorSpace='rgb', contrast=1.0, depth=-1.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='ISI_Main', opacity=1, ori=1.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0354 	EXP 	Created N_backD = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.1, italic=False, languageStyle='LTR', name='N_backD', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.0359 	EXP 	Created text_6 = TextStim(__class__=<class 'psychopy.visual.text.TextStim'>, alignHoriz=method-wrapper(...), alignText='center', alignVert=method-wrapper(...), anchorHoriz='center', anchorVert='center', antialias=True, autoLog=True, bold=False, color=array([1, 1, 1]), colorSpace='rgb', contrast=1.0, depth=0.0, flipHoriz=False, flipVert=False, font='Open Sans', fontFiles=[], height=0.05, italic=False, languageStyle='LTR', name='text_6', opacity=1, ori=0.0, pos=array([0., 0.]), rgb=UNKNOWN, text='', units='height', win=Window(...), wrapWidth=1)
+42.1276 	EXP 	TaskVersionText: text = 'This is the n-back task version "1"\n \n \n Please press spacebar to continue to the instructions.'
+42.1276 	EXP 	TaskVersionText: autoDraw = True
+97.6293 	DATA 	Keypress: space
+97.6324 	EXP 	TaskVersionText: autoDraw = False
+97.6324 	EXP 	text: text = "During the n-back, you will see a series of letters appear on the screen. Only one letter will appear on screen at one time. \n\nYou will need to press 'spacebar' on your keyboard according to rules you are given about the letters. \n\nPlease press spacebar to continue."
+97.6324 	EXP 	text: autoDraw = True
+99.0498 	DATA 	Keypress: space
+99.0532 	EXP 	text: autoDraw = False
+99.0532 	EXP 	text_2: text = 'The rules are different each time. For example, one rule will be to press the spacebar when you see a letter appear twice in a row. Please press spacebar as quickly and accurately as possible. \n\nDuring the task, letters are both uppercase and lowercase (e.g. E and e). Both uppercase and lowercase letters are treated as the same (i.e. E = e).\n\nPlease press spacebar to continue.'
+99.0532 	EXP 	text_2: autoDraw = True
+99.9693 	DATA 	Keypress: space
+99.9726 	EXP 	text_2: autoDraw = False
+99.9726 	EXP 	text_3: text = 'You will be alerted whenever a new rule is given during a break screen. When these rules appear, you may take a short break if needed. \n\nBefore you begin the task, you will take part in some practice runs. These will give you feedback on whether responses are correct or incorrect.\n\nPlease press spacebar to begin practice.'
+99.9726 	EXP 	text_3: autoDraw = True
+100.4287 	DATA 	Keypress: space
+101.5033 	EXP 	Imported Conditions/NbackMasterPract_v1.xlsx as conditions, 4 conditions, 2 params
+101.5035 	EXP 	Created sequence: sequential, trialTypes=4, nReps=1, seed=None
+101.5039 	EXP 	New trial (rep=0, index=0): {'CondFileP': 'Conditions/Version_1Pr/zeroback(1)_v1.xlsx', 'InstructionsP': "Rule: Press 'space' when you see the letter 'x' or 'X'."}
+102.8575 	DATA 	Keypress: space
+102.8577 	DATA 	Keypress: space
+102.8578 	DATA 	Keypress: space
+102.8580 	DATA 	Keypress: space
+102.8603 	EXP 	text_3: autoDraw = False
+102.8603 	EXP 	PractIn1: text = "Rule: Press 'space' when you see the letter 'x' or 'X'."
+102.8603 	EXP 	PractIn1: height = 0.05
+102.8603 	EXP 	PractIn2: pos = array([ 0.  , -0.25])
+102.8603 	EXP 	PractIn2: text = "Please press 'spacebar' to begin."
+102.8603 	EXP 	PractIn2: height = 0.05
+102.8603 	EXP 	PractBlock1: pos = array([0. , 0.2])
+102.8603 	EXP 	PractBlock1: text = 'Practice Block: 1 of 4'
+102.8603 	EXP 	PractBlock1: height = 0.05
+102.8603 	EXP 	PractIn1: autoDraw = True
+102.8603 	EXP 	PractBlock1: autoDraw = True
+102.8603 	EXP 	PractIn1: text = "Rule: Press 'space' when you see the letter 'x' or 'X'."
+102.8603 	EXP 	PractBlock1: text = 'Practice Block: 1 of 4'
+105.8530 	EXP 	PractIn2: autoDraw = True
+105.8530 	EXP 	PractIn2: text = "Please press 'spacebar' to begin."
+121.8076 	DATA 	Keypress: space
+121.8228 	EXP 	Imported Conditions/Version_1Pr/zeroback(1)_v1.xlsx as conditions, 10 conditions, 2 params
+121.8231 	EXP 	Created sequence: sequential, trialTypes=10, nReps=1, seed=None
+121.8233 	EXP 	New trial (rep=0, index=0): {'LettersDisplayedP': 'Z', 'CorrectnessP': 'None'}
+121.8306 	EXP 	PractIn1: autoDraw = False
+121.8306 	EXP 	PractIn2: autoDraw = False
+121.8306 	EXP 	PractBlock1: autoDraw = False
+121.8306 	EXP 	ISI_Pract_Fixation: text = '+'
+121.8306 	EXP 	ISI_Pract_Fixation: autoDraw = True
+123.0568 	EXP 	ISI_Pract_Fixation: autoDraw = False
+123.0568 	EXP 	ISI_Pract_Fixation: autoDraw = False
+123.0568 	EXP 	N_backP: text = 'Z'
+123.0568 	EXP 	N_backP: autoDraw = True
+125.0555 	EXP 	N_backP: autoDraw = False
+125.0555 	EXP 	text_4: text = 'Correct'
+125.0555 	EXP 	text_4: autoDraw = True
+126.5508 	EXP 	New trial (rep=0, index=1): {'LettersDisplayedP': 'r', 'CorrectnessP': 'None'}
+126.5586 	EXP 	text_4: autoDraw = False
+126.5586 	EXP 	ISI_Pract_Fixation: text = '+'
+126.5586 	EXP 	ISI_Pract_Fixation: autoDraw = True
+127.7505 	EXP 	ISI_Pract_Fixation: autoDraw = False
+127.7505 	EXP 	ISI_Pract_Fixation: autoDraw = False
+127.7505 	EXP 	N_backP: text = 'r'
+127.7505 	EXP 	N_backP: autoDraw = True
+129.7576 	EXP 	N_backP: autoDraw = False
+129.7576 	EXP 	text_4: text = 'Correct'
+129.7576 	EXP 	text_4: autoDraw = True
+131.2496 	EXP 	New trial (rep=0, index=2): {'LettersDisplayedP': 'X', 'CorrectnessP': 'space'}
+131.2571 	EXP 	text_4: autoDraw = False
+131.2571 	EXP 	ISI_Pract_Fixation: text = '+'
+131.2571 	EXP 	ISI_Pract_Fixation: autoDraw = True
+133.1763 	EXP 	ISI_Pract_Fixation: autoDraw = False
+133.1763 	EXP 	ISI_Pract_Fixation: autoDraw = False
+133.1763 	EXP 	N_backP: text = 'X'
+133.1763 	EXP 	N_backP: autoDraw = True
+133.6137 	DATA 	Keypress: space
+133.6162 	EXP 	N_backP: autoDraw = False
+133.6162 	EXP 	text_4: text = 'Correct'
+133.6162 	EXP 	text_4: autoDraw = True
+135.1172 	EXP 	New trial (rep=0, index=3): {'LettersDisplayedP': 'p', 'CorrectnessP': 'None'}
+135.1224 	EXP 	text_4: autoDraw = False
+135.1224 	EXP 	text_4: autoDraw = False
+135.1224 	EXP 	ISI_Pract_Fixation: text = '+'
+135.1224 	EXP 	ISI_Pract_Fixation: autoDraw = True
+136.7175 	EXP 	ISI_Pract_Fixation: autoDraw = False
+136.7175 	EXP 	ISI_Pract_Fixation: autoDraw = False
+136.7175 	EXP 	N_backP: text = 'p'
+136.7175 	EXP 	N_backP: autoDraw = True
+138.7218 	EXP 	N_backP: autoDraw = False
+138.7218 	EXP 	text_4: text = 'Correct'
+138.7218 	EXP 	text_4: autoDraw = True
+140.2134 	EXP 	New trial (rep=0, index=4): {'LettersDisplayedP': 'w', 'CorrectnessP': 'None'}
+140.2212 	EXP 	text_4: autoDraw = False
+140.2212 	EXP 	ISI_Pract_Fixation: text = '+'
+140.2212 	EXP 	ISI_Pract_Fixation: autoDraw = True
+141.9670 	EXP 	ISI_Pract_Fixation: autoDraw = False
+141.9670 	EXP 	ISI_Pract_Fixation: autoDraw = False
+141.9670 	EXP 	N_backP: text = 'w'
+141.9670 	EXP 	N_backP: autoDraw = True
+143.9702 	EXP 	N_backP: autoDraw = False
+143.9702 	EXP 	text_4: text = 'Correct'
+143.9702 	EXP 	text_4: autoDraw = True
+145.4615 	EXP 	New trial (rep=0, index=5): {'LettersDisplayedP': 'e', 'CorrectnessP': 'None'}
+145.4696 	EXP 	text_4: autoDraw = False
+145.4696 	EXP 	ISI_Pract_Fixation: text = '+'
+145.4696 	EXP 	ISI_Pract_Fixation: autoDraw = True
+147.2899 	EXP 	ISI_Pract_Fixation: autoDraw = False
+147.2899 	EXP 	ISI_Pract_Fixation: autoDraw = False
+147.2899 	EXP 	N_backP: text = 'e'
+147.2899 	EXP 	N_backP: autoDraw = True
+149.2974 	EXP 	N_backP: autoDraw = False
+149.2974 	EXP 	text_4: text = 'Correct'
+149.2974 	EXP 	text_4: autoDraw = True
+150.7852 	EXP 	New trial (rep=0, index=6): {'LettersDisplayedP': 'X', 'CorrectnessP': 'space'}
+150.7932 	EXP 	text_4: autoDraw = False
+150.7932 	EXP 	ISI_Pract_Fixation: text = '+'
+150.7932 	EXP 	ISI_Pract_Fixation: autoDraw = True
+152.2102 	EXP 	ISI_Pract_Fixation: autoDraw = False
+152.2102 	EXP 	ISI_Pract_Fixation: autoDraw = False
+152.2102 	EXP 	N_backP: text = 'X'
+152.2102 	EXP 	N_backP: autoDraw = True
+152.6143 	DATA 	Keypress: space
+152.6262 	EXP 	N_backP: autoDraw = False
+152.6262 	EXP 	text_4: text = 'Correct'
+152.6262 	EXP 	text_4: autoDraw = True
+154.1198 	EXP 	New trial (rep=0, index=7): {'LettersDisplayedP': 'x', 'CorrectnessP': 'space'}
+154.1252 	EXP 	text_4: autoDraw = False
+154.1252 	EXP 	text_4: autoDraw = False
+154.1252 	EXP 	ISI_Pract_Fixation: text = '+'
+154.1252 	EXP 	ISI_Pract_Fixation: autoDraw = True
+155.2672 	EXP 	ISI_Pract_Fixation: autoDraw = False
+155.2672 	EXP 	ISI_Pract_Fixation: autoDraw = False
+155.2672 	EXP 	N_backP: text = 'x'
+155.2672 	EXP 	N_backP: autoDraw = True
+155.8444 	DATA 	Keypress: space
+155.8579 	EXP 	N_backP: autoDraw = False
+155.8579 	EXP 	text_4: text = 'Correct'
+155.8579 	EXP 	text_4: autoDraw = True
+157.3509 	EXP 	New trial (rep=0, index=8): {'LettersDisplayedP': 'p', 'CorrectnessP': 'None'}
+157.3579 	EXP 	text_4: autoDraw = False
+157.3579 	EXP 	text_4: autoDraw = False
+157.3579 	EXP 	ISI_Pract_Fixation: text = '+'
+157.3579 	EXP 	ISI_Pract_Fixation: autoDraw = True
+158.5990 	EXP 	ISI_Pract_Fixation: autoDraw = False
+158.5990 	EXP 	ISI_Pract_Fixation: autoDraw = False
+158.5990 	EXP 	N_backP: text = 'p'
+158.5990 	EXP 	N_backP: autoDraw = True
+160.5985 	EXP 	N_backP: autoDraw = False
+160.5985 	EXP 	N_backP: autoDraw = False
+160.5985 	EXP 	text_4: text = 'Correct'
+160.5985 	EXP 	text_4: autoDraw = True
+161.0845 	DATA 	Keypress: space
+162.0922 	EXP 	New trial (rep=0, index=9): {'LettersDisplayedP': 'r', 'CorrectnessP': 'None'}
+162.0986 	EXP 	text_4: autoDraw = False
+162.0986 	EXP 	text_4: autoDraw = False
+162.0986 	EXP 	ISI_Pract_Fixation: text = '+'
+162.0986 	EXP 	ISI_Pract_Fixation: autoDraw = True
+163.4188 	EXP 	ISI_Pract_Fixation: autoDraw = False
+163.4188 	EXP 	ISI_Pract_Fixation: autoDraw = False
+163.4188 	EXP 	N_backP: text = 'r'
+163.4188 	EXP 	N_backP: autoDraw = True
+165.4221 	EXP 	N_backP: autoDraw = False
+165.4221 	EXP 	text_4: text = 'Correct'
+165.4221 	EXP 	text_4: autoDraw = True
+166.9157 	EXP 	New trial (rep=0, index=1): {'CondFileP': 'Conditions/Version_1Pr/oneback(1)_v1.xlsx', 'InstructionsP': "New rule: Press 'space' when you see 1-back (i.e. the same letter as the one that appeared 1 letter ago.)"}
+166.9453 	EXP 	text_4: autoDraw = False
+166.9453 	EXP 	PractIn1: text = "New rule: Press 'space' when you see 1-back (i.e. the same letter as the one that appeared 1 letter ago.)"
+166.9453 	EXP 	PractIn1: height = 0.05
+166.9453 	EXP 	PractIn2: pos = array([ 0.  , -0.25])
+166.9453 	EXP 	PractIn2: text = "Please press 'spacebar' to begin."
+166.9453 	EXP 	PractIn2: height = 0.05
+166.9453 	EXP 	PractBlock1: pos = array([0. , 0.2])
+166.9453 	EXP 	PractBlock1: text = 'Practice Block: 2 of 4'
+166.9453 	EXP 	PractBlock1: height = 0.05
+166.9453 	EXP 	PractIn1: autoDraw = True
+166.9453 	EXP 	PractBlock1: autoDraw = True
+166.9453 	EXP 	PractIn1: text = "New rule: Press 'space' when you see 1-back (i.e. the same letter as the one that appeared 1 letter ago.)"
+166.9453 	EXP 	PractBlock1: text = 'Practice Block: 2 of 4'
+169.9355 	EXP 	PractIn2: autoDraw = True
+169.9355 	EXP 	PractIn2: text = "Please press 'spacebar' to begin."
+256.4377 	DATA 	Keypress: space
+256.4525 	EXP 	Imported Conditions/Version_1Pr/oneback(1)_v1.xlsx as conditions, 10 conditions, 2 params
+256.4527 	EXP 	Created sequence: sequential, trialTypes=10, nReps=1, seed=None
+256.4529 	EXP 	New trial (rep=0, index=0): {'LettersDisplayedP': 'a', 'CorrectnessP': 'None'}
+256.4584 	EXP 	PractIn1: autoDraw = False
+256.4584 	EXP 	PractIn2: autoDraw = False
+256.4584 	EXP 	PractBlock1: autoDraw = False
+256.4584 	EXP 	ISI_Pract_Fixation: text = '+'
+256.4584 	EXP 	ISI_Pract_Fixation: autoDraw = True
+258.2299 	EXP 	ISI_Pract_Fixation: autoDraw = False
+258.2299 	EXP 	ISI_Pract_Fixation: autoDraw = False
+258.2299 	EXP 	N_backP: text = 'a'
+258.2299 	EXP 	N_backP: autoDraw = True
+258.8204 	DATA 	Keypress: space
+258.8364 	EXP 	N_backP: autoDraw = False
+258.8364 	EXP 	text_4: text = 'Incorrect'
+258.8364 	EXP 	text_4: autoDraw = True
+260.3293 	EXP 	New trial (rep=0, index=1): {'LettersDisplayedP': 'x', 'CorrectnessP': 'None'}
+260.3358 	EXP 	text_4: autoDraw = False
+260.3358 	EXP 	text_4: autoDraw = False
+260.3358 	EXP 	ISI_Pract_Fixation: text = '+'
+260.3358 	EXP 	ISI_Pract_Fixation: autoDraw = True
+261.8552 	EXP 	ISI_Pract_Fixation: autoDraw = False
+261.8552 	EXP 	ISI_Pract_Fixation: autoDraw = False
+261.8552 	EXP 	N_backP: text = 'x'
+261.8552 	EXP 	N_backP: autoDraw = True
+263.8613 	EXP 	N_backP: autoDraw = False
+263.8613 	EXP 	text_4: text = 'Correct'
+263.8613 	EXP 	text_4: autoDraw = True
+265.3514 	EXP 	New trial (rep=0, index=2): {'LettersDisplayedP': 'g', 'CorrectnessP': 'None'}
+265.3594 	EXP 	text_4: autoDraw = False
+265.3594 	EXP 	ISI_Pract_Fixation: text = '+'
+265.3594 	EXP 	ISI_Pract_Fixation: autoDraw = True
+266.9796 	EXP 	ISI_Pract_Fixation: autoDraw = False
+266.9796 	EXP 	ISI_Pract_Fixation: autoDraw = False
+266.9796 	EXP 	N_backP: text = 'g'
+266.9796 	EXP 	N_backP: autoDraw = True
+268.9780 	EXP 	N_backP: autoDraw = False
+268.9780 	EXP 	text_4: text = 'Correct'
+268.9780 	EXP 	text_4: autoDraw = True
+270.4749 	EXP 	New trial (rep=0, index=3): {'LettersDisplayedP': 'G', 'CorrectnessP': 'space'}
+270.4828 	EXP 	text_4: autoDraw = False
+270.4828 	EXP 	ISI_Pract_Fixation: text = '+'
+270.4828 	EXP 	ISI_Pract_Fixation: autoDraw = True
+271.5798 	EXP 	ISI_Pract_Fixation: autoDraw = False
+271.5798 	EXP 	ISI_Pract_Fixation: autoDraw = False
+271.5798 	EXP 	N_backP: text = 'G'
+271.5798 	EXP 	N_backP: autoDraw = True
+272.0698 	DATA 	Keypress: space
+272.0880 	EXP 	N_backP: autoDraw = False
+272.0880 	EXP 	text_4: text = 'Correct'
+272.0880 	EXP 	text_4: autoDraw = True
+273.5842 	EXP 	New trial (rep=0, index=4): {'LettersDisplayedP': 'u', 'CorrectnessP': 'None'}
+273.5900 	EXP 	text_4: autoDraw = False
+273.5900 	EXP 	text_4: autoDraw = False
+273.5900 	EXP 	ISI_Pract_Fixation: text = '+'
+273.5900 	EXP 	ISI_Pract_Fixation: autoDraw = True
+275.4670 	EXP 	ISI_Pract_Fixation: autoDraw = False
+275.4670 	EXP 	ISI_Pract_Fixation: autoDraw = False
+275.4670 	EXP 	N_backP: text = 'u'
+275.4670 	EXP 	N_backP: autoDraw = True
+277.4641 	EXP 	N_backP: autoDraw = False
+277.4641 	EXP 	text_4: text = 'Correct'
+277.4641 	EXP 	text_4: autoDraw = True
+278.9560 	EXP 	New trial (rep=0, index=5): {'LettersDisplayedP': 'y', 'CorrectnessP': 'None'}
+278.9636 	EXP 	text_4: autoDraw = False
+278.9636 	EXP 	ISI_Pract_Fixation: text = '+'
+278.9636 	EXP 	ISI_Pract_Fixation: autoDraw = True
+280.6803 	EXP 	ISI_Pract_Fixation: autoDraw = False
+280.6803 	EXP 	ISI_Pract_Fixation: autoDraw = False
+280.6803 	EXP 	N_backP: text = 'y'
+280.6803 	EXP 	N_backP: autoDraw = True
+282.6875 	EXP 	N_backP: autoDraw = False
+282.6875 	EXP 	text_4: text = 'Correct'
+282.6875 	EXP 	text_4: autoDraw = True
+284.1792 	EXP 	New trial (rep=0, index=6): {'LettersDisplayedP': 'y', 'CorrectnessP': 'space'}
+284.1869 	EXP 	text_4: autoDraw = False
+284.1869 	EXP 	ISI_Pract_Fixation: text = '+'
+284.1869 	EXP 	ISI_Pract_Fixation: autoDraw = True
+285.2559 	EXP 	ISI_Pract_Fixation: autoDraw = False
+285.2559 	EXP 	ISI_Pract_Fixation: autoDraw = False
+285.2559 	EXP 	N_backP: text = 'y'
+285.2559 	EXP 	N_backP: autoDraw = True
+285.7410 	DATA 	Keypress: space
+285.7571 	EXP 	N_backP: autoDraw = False
+285.7571 	EXP 	text_4: text = 'Correct'
+285.7571 	EXP 	text_4: autoDraw = True
+287.2556 	EXP 	New trial (rep=0, index=7): {'LettersDisplayedP': 'k', 'CorrectnessP': 'None'}
+287.2613 	EXP 	text_4: autoDraw = False
+287.2613 	EXP 	text_4: autoDraw = False
+287.2613 	EXP 	ISI_Pract_Fixation: text = '+'
+287.2613 	EXP 	ISI_Pract_Fixation: autoDraw = True
+289.2279 	EXP 	ISI_Pract_Fixation: autoDraw = False
+289.2279 	EXP 	ISI_Pract_Fixation: autoDraw = False
+289.2279 	EXP 	N_backP: text = 'k'
+289.2279 	EXP 	N_backP: autoDraw = True
+291.2384 	EXP 	N_backP: autoDraw = False
+291.2384 	EXP 	text_4: text = 'Correct'
+291.2384 	EXP 	text_4: autoDraw = True
+292.7267 	EXP 	New trial (rep=0, index=8): {'LettersDisplayedP': 'c', 'CorrectnessP': 'None'}
+292.7345 	EXP 	text_4: autoDraw = False
+292.7345 	EXP 	ISI_Pract_Fixation: text = '+'
+292.7345 	EXP 	ISI_Pract_Fixation: autoDraw = True
+294.0012 	EXP 	ISI_Pract_Fixation: autoDraw = False
+294.0012 	EXP 	ISI_Pract_Fixation: autoDraw = False
+294.0012 	EXP 	N_backP: text = 'c'
+294.0012 	EXP 	N_backP: autoDraw = True
+296.0001 	EXP 	N_backP: autoDraw = False
+296.0001 	EXP 	N_backP: autoDraw = False
+296.0001 	EXP 	text_4: text = 'Correct'
+296.0001 	EXP 	text_4: autoDraw = True
+297.4931 	EXP 	New trial (rep=0, index=9): {'LettersDisplayedP': 'r', 'CorrectnessP': 'None'}
+297.4999 	EXP 	text_4: autoDraw = False
+297.4999 	EXP 	text_4: autoDraw = False
+297.4999 	EXP 	ISI_Pract_Fixation: text = '+'
+297.4999 	EXP 	ISI_Pract_Fixation: autoDraw = True
+299.2908 	EXP 	ISI_Pract_Fixation: autoDraw = False
+299.2908 	EXP 	ISI_Pract_Fixation: autoDraw = False
+299.2908 	EXP 	N_backP: text = 'r'
+299.2908 	EXP 	N_backP: autoDraw = True
+301.2903 	EXP 	N_backP: autoDraw = False
+301.2903 	EXP 	N_backP: autoDraw = False
+301.2903 	EXP 	text_4: text = 'Correct'
+301.2903 	EXP 	text_4: autoDraw = True
+302.7875 	EXP 	New trial (rep=0, index=2): {'CondFileP': 'Conditions/Version_1Pr/twoback(1)_v1.xlsx', 'InstructionsP': "New rule: Press 'space' when you see 2-back (i.e. the same letter as the one that appeared 2 letters ago.)"}
+302.8260 	EXP 	text_4: autoDraw = False
+302.8260 	EXP 	text_4: autoDraw = False
+302.8260 	EXP 	PractIn1: text = "New rule: Press 'space' when you see 2-back (i.e. the same letter as the one that appeared 2 letters ago.)"
+302.8260 	EXP 	PractIn1: height = 0.05
+302.8260 	EXP 	PractIn2: pos = array([ 0.  , -0.25])
+302.8260 	EXP 	PractIn2: text = "Please press 'spacebar' to begin."
+302.8260 	EXP 	PractIn2: height = 0.05
+302.8260 	EXP 	PractBlock1: pos = array([0. , 0.2])
+302.8260 	EXP 	PractBlock1: text = 'Practice Block: 3 of 4'
+302.8260 	EXP 	PractBlock1: height = 0.05
+302.8260 	EXP 	PractIn1: autoDraw = True
+302.8260 	EXP 	PractBlock1: autoDraw = True
+302.8260 	EXP 	PractIn1: text = "New rule: Press 'space' when you see 2-back (i.e. the same letter as the one that appeared 2 letters ago.)"
+302.8260 	EXP 	PractBlock1: text = 'Practice Block: 3 of 4'
+305.8078 	EXP 	PractIn2: autoDraw = True
+305.8078 	EXP 	PractIn2: text = "Please press 'spacebar' to begin."
+317.6931 	DATA 	Keypress: space
+317.7202 	EXP 	Imported Conditions/Version_1Pr/twoback(1)_v1.xlsx as conditions, 10 conditions, 2 params
+317.7206 	EXP 	Created sequence: sequential, trialTypes=10, nReps=1, seed=None
+317.7211 	EXP 	New trial (rep=0, index=0): {'LettersDisplayedP': 'E', 'CorrectnessP': 'None'}
+317.7273 	EXP 	PractIn1: autoDraw = False
+317.7273 	EXP 	PractIn2: autoDraw = False
+317.7273 	EXP 	PractBlock1: autoDraw = False
+317.7273 	EXP 	ISI_Pract_Fixation: text = '+'
+317.7273 	EXP 	ISI_Pract_Fixation: autoDraw = True
+319.1716 	EXP 	ISI_Pract_Fixation: autoDraw = False
+319.1716 	EXP 	ISI_Pract_Fixation: autoDraw = False
+319.1716 	EXP 	N_backP: text = 'E'
+319.1716 	EXP 	N_backP: autoDraw = True
+321.1760 	EXP 	N_backP: autoDraw = False
+321.1760 	EXP 	text_4: text = 'Correct'
+321.1760 	EXP 	text_4: autoDraw = True
+322.6679 	EXP 	New trial (rep=0, index=1): {'LettersDisplayedP': 'p', 'CorrectnessP': 'None'}
+322.6757 	EXP 	text_4: autoDraw = False
+322.6757 	EXP 	ISI_Pract_Fixation: text = '+'
+322.6757 	EXP 	ISI_Pract_Fixation: autoDraw = True
+323.7451 	EXP 	ISI_Pract_Fixation: autoDraw = False
+323.7451 	EXP 	ISI_Pract_Fixation: autoDraw = False
+323.7451 	EXP 	N_backP: text = 'p'
+323.7451 	EXP 	N_backP: autoDraw = True
+325.7499 	EXP 	N_backP: autoDraw = False
+325.7499 	EXP 	text_4: text = 'Correct'
+325.7499 	EXP 	text_4: autoDraw = True
+327.2415 	EXP 	New trial (rep=0, index=2): {'LettersDisplayedP': 'e', 'CorrectnessP': 'space'}
+327.2492 	EXP 	text_4: autoDraw = False
+327.2492 	EXP 	ISI_Pract_Fixation: text = '+'
+327.2492 	EXP 	ISI_Pract_Fixation: autoDraw = True
+329.0152 	EXP 	ISI_Pract_Fixation: autoDraw = False
+329.0152 	EXP 	ISI_Pract_Fixation: autoDraw = False
+329.0152 	EXP 	N_backP: text = 'e'
+329.0152 	EXP 	N_backP: autoDraw = True
+329.5973 	DATA 	Keypress: space
+329.5998 	EXP 	N_backP: autoDraw = False
+329.5998 	EXP 	text_4: text = 'Correct'
+329.5998 	EXP 	text_4: autoDraw = True
+331.1000 	EXP 	New trial (rep=0, index=3): {'LettersDisplayedP': 's', 'CorrectnessP': 'None'}
+331.1066 	EXP 	text_4: autoDraw = False
+331.1066 	EXP 	text_4: autoDraw = False
+331.1066 	EXP 	ISI_Pract_Fixation: text = '+'
+331.1066 	EXP 	ISI_Pract_Fixation: autoDraw = True
+332.3756 	EXP 	ISI_Pract_Fixation: autoDraw = False
+332.3756 	EXP 	ISI_Pract_Fixation: autoDraw = False
+332.3756 	EXP 	N_backP: text = 's'
+332.3756 	EXP 	N_backP: autoDraw = True
+334.3756 	EXP 	N_backP: autoDraw = False
+334.3756 	EXP 	text_4: text = 'Correct'
+334.3756 	EXP 	text_4: autoDraw = True
+335.8727 	EXP 	New trial (rep=0, index=4): {'LettersDisplayedP': 'S', 'CorrectnessP': 'None'}
+335.8801 	EXP 	text_4: autoDraw = False
+335.8801 	EXP 	ISI_Pract_Fixation: text = '+'
+335.8801 	EXP 	ISI_Pract_Fixation: autoDraw = True
+337.2755 	EXP 	ISI_Pract_Fixation: autoDraw = False
+337.2755 	EXP 	ISI_Pract_Fixation: autoDraw = False
+337.2755 	EXP 	N_backP: text = 'S'
+337.2755 	EXP 	N_backP: autoDraw = True
+339.2792 	EXP 	N_backP: autoDraw = False
+339.2792 	EXP 	text_4: text = 'Correct'
+339.2792 	EXP 	text_4: autoDraw = True
+340.7708 	EXP 	New trial (rep=0, index=5): {'LettersDisplayedP': 's', 'CorrectnessP': 'space'}
+340.7788 	EXP 	text_4: autoDraw = False
+340.7788 	EXP 	ISI_Pract_Fixation: text = '+'
+340.7788 	EXP 	ISI_Pract_Fixation: autoDraw = True
+342.1223 	EXP 	ISI_Pract_Fixation: autoDraw = False
+342.1223 	EXP 	ISI_Pract_Fixation: autoDraw = False
+342.1223 	EXP 	N_backP: text = 's'
+342.1223 	EXP 	N_backP: autoDraw = True
+342.8140 	DATA 	Keypress: space
+342.8165 	EXP 	N_backP: autoDraw = False
+342.8165 	EXP 	text_4: text = 'Correct'
+342.8165 	EXP 	text_4: autoDraw = True
+344.3126 	EXP 	New trial (rep=0, index=6): {'LettersDisplayedP': 'P', 'CorrectnessP': 'None'}
+344.3192 	EXP 	text_4: autoDraw = False
+344.3192 	EXP 	text_4: autoDraw = False
+344.3192 	EXP 	ISI_Pract_Fixation: text = '+'
+344.3192 	EXP 	ISI_Pract_Fixation: autoDraw = True
+345.3637 	EXP 	ISI_Pract_Fixation: autoDraw = False
+345.3637 	EXP 	ISI_Pract_Fixation: autoDraw = False
+345.3637 	EXP 	N_backP: text = 'P'
+345.3637 	EXP 	N_backP: autoDraw = True
+347.3685 	EXP 	N_backP: autoDraw = False
+347.3685 	EXP 	text_4: text = 'Correct'
+347.3685 	EXP 	text_4: autoDraw = True
+348.8602 	EXP 	New trial (rep=0, index=7): {'LettersDisplayedP': 'C', 'CorrectnessP': 'None'}
+348.8678 	EXP 	text_4: autoDraw = False
+348.8678 	EXP 	ISI_Pract_Fixation: text = '+'
+348.8678 	EXP 	ISI_Pract_Fixation: autoDraw = True
+350.0604 	EXP 	ISI_Pract_Fixation: autoDraw = False
+350.0604 	EXP 	ISI_Pract_Fixation: autoDraw = False
+350.0604 	EXP 	N_backP: text = 'C'
+350.0604 	EXP 	N_backP: autoDraw = True
+352.0671 	EXP 	N_backP: autoDraw = False
+352.0671 	EXP 	text_4: text = 'Correct'
+352.0671 	EXP 	text_4: autoDraw = True
+353.5588 	EXP 	New trial (rep=0, index=8): {'LettersDisplayedP': 'x', 'CorrectnessP': 'None'}
+353.5667 	EXP 	text_4: autoDraw = False
+353.5667 	EXP 	ISI_Pract_Fixation: text = '+'
+353.5667 	EXP 	ISI_Pract_Fixation: autoDraw = True
+355.1837 	EXP 	ISI_Pract_Fixation: autoDraw = False
+355.1837 	EXP 	ISI_Pract_Fixation: autoDraw = False
+355.1837 	EXP 	N_backP: text = 'x'
+355.1837 	EXP 	N_backP: autoDraw = True
+357.1826 	EXP 	N_backP: autoDraw = False
+357.1826 	EXP 	N_backP: autoDraw = False
+357.1826 	EXP 	text_4: text = 'Correct'
+357.1826 	EXP 	text_4: autoDraw = True
+358.6763 	EXP 	New trial (rep=0, index=9): {'LettersDisplayedP': 'Z', 'CorrectnessP': 'None'}
+358.6818 	EXP 	text_4: autoDraw = False
+358.6818 	EXP 	text_4: autoDraw = False
+358.6818 	EXP 	ISI_Pract_Fixation: text = '+'
+358.6818 	EXP 	ISI_Pract_Fixation: autoDraw = True
+360.5478 	EXP 	ISI_Pract_Fixation: autoDraw = False
+360.5478 	EXP 	ISI_Pract_Fixation: autoDraw = False
+360.5478 	EXP 	N_backP: text = 'Z'
+360.5478 	EXP 	N_backP: autoDraw = True
+362.5472 	EXP 	N_backP: autoDraw = False
+362.5472 	EXP 	N_backP: autoDraw = False
+362.5472 	EXP 	text_4: text = 'Correct'
+362.5472 	EXP 	text_4: autoDraw = True
+364.0429 	EXP 	New trial (rep=0, index=3): {'CondFileP': 'Conditions/Version_1Pr/threeback(1)_v1.xlsx', 'InstructionsP': "New rule: Press 'space' when you see 3-back (i.e. the same letter as the one that appeared 3 letters ago.)"}
+364.0898 	EXP 	text_4: autoDraw = False
+364.0898 	EXP 	text_4: autoDraw = False
+364.0898 	EXP 	PractIn1: text = "New rule: Press 'space' when you see 3-back (i.e. the same letter as the one that appeared 3 letters ago.)"
+364.0898 	EXP 	PractIn1: height = 0.05
+364.0898 	EXP 	PractIn2: pos = array([ 0.  , -0.25])
+364.0898 	EXP 	PractIn2: text = "Please press 'spacebar' to begin."
+364.0898 	EXP 	PractIn2: height = 0.05
+364.0898 	EXP 	PractBlock1: pos = array([0. , 0.2])
+364.0898 	EXP 	PractBlock1: text = 'Practice Block: 4 of 4'
+364.0898 	EXP 	PractBlock1: height = 0.05
+364.0898 	EXP 	PractIn1: autoDraw = True
+364.0898 	EXP 	PractBlock1: autoDraw = True
+364.0898 	EXP 	PractIn1: text = "New rule: Press 'space' when you see 3-back (i.e. the same letter as the one that appeared 3 letters ago.)"
+364.0898 	EXP 	PractBlock1: text = 'Practice Block: 4 of 4'
+367.0743 	EXP 	PractIn2: autoDraw = True
+367.0743 	EXP 	PractIn2: text = "Please press 'spacebar' to begin."
+368.1345 	DATA 	Keypress: space
+368.1490 	EXP 	Imported Conditions/Version_1Pr/threeback(1)_v1.xlsx as conditions, 10 conditions, 2 params
+368.1493 	EXP 	Created sequence: sequential, trialTypes=10, nReps=1, seed=None
+368.1495 	EXP 	New trial (rep=0, index=0): {'LettersDisplayedP': 'r', 'CorrectnessP': 'None'}
+368.1544 	EXP 	PractIn1: autoDraw = False
+368.1544 	EXP 	PractIn2: autoDraw = False
+368.1544 	EXP 	PractBlock1: autoDraw = False
+368.1544 	EXP 	ISI_Pract_Fixation: text = '+'
+368.1544 	EXP 	ISI_Pract_Fixation: autoDraw = True
+369.4471 	EXP 	ISI_Pract_Fixation: autoDraw = False
+369.4471 	EXP 	ISI_Pract_Fixation: autoDraw = False
+369.4471 	EXP 	N_backP: text = 'r'
+369.4471 	EXP 	N_backP: autoDraw = True
+371.4529 	EXP 	N_backP: autoDraw = False
+371.4529 	EXP 	text_4: text = 'Correct'
+371.4529 	EXP 	text_4: autoDraw = True
+372.9449 	EXP 	New trial (rep=0, index=1): {'LettersDisplayedP': 'a', 'CorrectnessP': 'None'}
+372.9525 	EXP 	text_4: autoDraw = False
+372.9525 	EXP 	ISI_Pract_Fixation: text = '+'
+372.9525 	EXP 	ISI_Pract_Fixation: autoDraw = True
+374.3707 	EXP 	ISI_Pract_Fixation: autoDraw = False
+374.3707 	EXP 	ISI_Pract_Fixation: autoDraw = False
+374.3707 	EXP 	N_backP: text = 'a'
+374.3707 	EXP 	N_backP: autoDraw = True
+376.3732 	EXP 	N_backP: autoDraw = False
+376.3732 	EXP 	text_4: text = 'Correct'
+376.3732 	EXP 	text_4: autoDraw = True
+377.8682 	EXP 	New trial (rep=0, index=2): {'LettersDisplayedP': 't', 'CorrectnessP': 'None'}
+377.8757 	EXP 	text_4: autoDraw = False
+377.8757 	EXP 	ISI_Pract_Fixation: text = '+'
+377.8757 	EXP 	ISI_Pract_Fixation: autoDraw = True
+379.8682 	EXP 	ISI_Pract_Fixation: autoDraw = False
+379.8682 	EXP 	ISI_Pract_Fixation: autoDraw = False
+379.8682 	EXP 	N_backP: text = 't'
+379.8682 	EXP 	N_backP: autoDraw = True
+381.8749 	EXP 	N_backP: autoDraw = False
+381.8749 	EXP 	text_4: text = 'Correct'
+381.8749 	EXP 	text_4: autoDraw = True
+383.3666 	EXP 	New trial (rep=0, index=3): {'LettersDisplayedP': 'r', 'CorrectnessP': 'space'}
+383.3745 	EXP 	text_4: autoDraw = False
+383.3745 	EXP 	ISI_Pract_Fixation: text = '+'
+383.3745 	EXP 	ISI_Pract_Fixation: autoDraw = True
+385.3905 	EXP 	ISI_Pract_Fixation: autoDraw = False
+385.3905 	EXP 	ISI_Pract_Fixation: autoDraw = False
+385.3905 	EXP 	N_backP: text = 'r'
+385.3905 	EXP 	N_backP: autoDraw = True
+387.3938 	EXP 	N_backP: autoDraw = False
+387.3938 	EXP 	N_backP: autoDraw = False
+387.3938 	EXP 	text_4: text = 'Miss (too slow)'
+387.3938 	EXP 	text_4: autoDraw = True
+388.8900 	EXP 	New trial (rep=0, index=4): {'LettersDisplayedP': 'a', 'CorrectnessP': 'None'}
+388.8978 	EXP 	text_4: autoDraw = False
+388.8978 	EXP 	ISI_Pract_Fixation: text = '+'
+388.8978 	EXP 	ISI_Pract_Fixation: autoDraw = True
+390.2168 	EXP 	ISI_Pract_Fixation: autoDraw = False
+390.2168 	EXP 	ISI_Pract_Fixation: autoDraw = False
+390.2168 	EXP 	N_backP: text = 'a'
+390.2168 	EXP 	N_backP: autoDraw = True
+391.0842 	DATA 	Keypress: space
+391.1010 	EXP 	N_backP: autoDraw = False
+391.1010 	EXP 	text_4: text = 'Incorrect'
+391.1010 	EXP 	text_4: autoDraw = True
+392.5986 	EXP 	New trial (rep=0, index=5): {'LettersDisplayedP': 'Y', 'CorrectnessP': 'None'}
+392.6047 	EXP 	text_4: autoDraw = False
+392.6047 	EXP 	text_4: autoDraw = False
+392.6047 	EXP 	ISI_Pract_Fixation: text = '+'
+392.6047 	EXP 	ISI_Pract_Fixation: autoDraw = True
+393.9765 	EXP 	ISI_Pract_Fixation: autoDraw = False
+393.9765 	EXP 	ISI_Pract_Fixation: autoDraw = False
+393.9765 	EXP 	N_backP: text = 'Y'
+393.9765 	EXP 	N_backP: autoDraw = True
+395.9791 	EXP 	N_backP: autoDraw = False
+395.9791 	EXP 	text_4: text = 'Correct'
+395.9791 	EXP 	text_4: autoDraw = True
+397.4706 	EXP 	New trial (rep=0, index=6): {'LettersDisplayedP': 'q', 'CorrectnessP': 'None'}
+397.4786 	EXP 	text_4: autoDraw = False
+397.4786 	EXP 	ISI_Pract_Fixation: text = '+'
+397.4786 	EXP 	ISI_Pract_Fixation: autoDraw = True
+398.8213 	EXP 	ISI_Pract_Fixation: autoDraw = False
+398.8213 	EXP 	ISI_Pract_Fixation: autoDraw = False
+398.8213 	EXP 	N_backP: text = 'q'
+398.8213 	EXP 	N_backP: autoDraw = True
+400.8273 	EXP 	N_backP: autoDraw = False
+400.8273 	EXP 	text_4: text = 'Correct'
+400.8273 	EXP 	text_4: autoDraw = True
+402.3195 	EXP 	New trial (rep=0, index=7): {'LettersDisplayedP': 'A', 'CorrectnessP': 'space'}
+402.3271 	EXP 	text_4: autoDraw = False
+402.3271 	EXP 	ISI_Pract_Fixation: text = '+'
+402.3271 	EXP 	ISI_Pract_Fixation: autoDraw = True
+403.8696 	EXP 	ISI_Pract_Fixation: autoDraw = False
+403.8696 	EXP 	ISI_Pract_Fixation: autoDraw = False
+403.8696 	EXP 	N_backP: text = 'A'
+403.8696 	EXP 	N_backP: autoDraw = True
+404.6667 	DATA 	Keypress: space
+404.6691 	EXP 	N_backP: autoDraw = False
+404.6691 	EXP 	text_4: text = 'Correct'
+404.6691 	EXP 	text_4: autoDraw = True
+406.1703 	EXP 	New trial (rep=0, index=8): {'LettersDisplayedP': 'y', 'CorrectnessP': 'None'}
+406.1760 	EXP 	text_4: autoDraw = False
+406.1760 	EXP 	text_4: autoDraw = False
+406.1760 	EXP 	ISI_Pract_Fixation: text = '+'
+406.1760 	EXP 	ISI_Pract_Fixation: autoDraw = True
+408.1446 	EXP 	ISI_Pract_Fixation: autoDraw = False
+408.1446 	EXP 	ISI_Pract_Fixation: autoDraw = False
+408.1446 	EXP 	N_backP: text = 'y'
+408.1446 	EXP 	N_backP: autoDraw = True
+410.1500 	EXP 	N_backP: autoDraw = False
+410.1500 	EXP 	text_4: text = 'Correct'
+410.1500 	EXP 	text_4: autoDraw = True
+411.6415 	EXP 	New trial (rep=0, index=9): {'LettersDisplayedP': 'r', 'CorrectnessP': 'None'}
+411.6494 	EXP 	text_4: autoDraw = False
+411.6494 	EXP 	ISI_Pract_Fixation: text = '+'
+411.6494 	EXP 	ISI_Pract_Fixation: autoDraw = True
+413.5903 	EXP 	ISI_Pract_Fixation: autoDraw = False
+413.5903 	EXP 	ISI_Pract_Fixation: autoDraw = False
+413.5903 	EXP 	N_backP: text = 'r'
+413.5903 	EXP 	N_backP: autoDraw = True
+415.1667 	DATA 	Keypress: space
+415.1690 	EXP 	N_backP: autoDraw = False
+415.1690 	EXP 	text_4: text = 'Incorrect'
+415.1690 	EXP 	text_4: autoDraw = True
+416.6977 	EXP 	text_4: autoDraw = False
+416.6977 	EXP 	text_4: autoDraw = False
+416.6977 	EXP 	TransitionText: text = 'You have now completed the practice runs. Please take a break if required.\n\nPress spacebar to continue'
+416.6977 	EXP 	TransitionText: autoDraw = True
+459.4954 	DATA 	Keypress: space
+459.4983 	EXP 	TransitionText: autoDraw = False
+459.4983 	EXP 	text_5: text = 'You will begin the main task on the next screen.\n\nPlease keep in mind you will no longer receive visual feedback (i.e. correct/incorrect/miss) on the main task.\n\nPlease press spacebar to begin the main task.'
+459.4983 	EXP 	text_5: autoDraw = True
+467.7967 	DATA 	Keypress: space
+467.8110 	EXP 	Imported Conditions/NbackMaster_v1.xlsx as conditions, 16 conditions, 2 params
+467.8112 	EXP 	Created sequence: sequential, trialTypes=16, nReps=1, seed=None
+467.8114 	EXP 	New trial (rep=0, index=0): {'CondFile': 'Conditions/Version_1/zeroback(1)_v1.xlsx', 'Instructions': "Rule: Press 'space' when you see the letter 'x' or 'X'."}
+467.8986 	EXP 	text_5: autoDraw = False
+467.8986 	EXP 	MainInt1: pos = array([ 0. , -0.1])
+467.8986 	EXP 	MainInt1: text = "Rule: Press 'space' when you see the letter 'x' or 'X'."
+467.8986 	EXP 	MainInt1: height = 0.05
+467.8986 	EXP 	MainInt2: pos = array([ 0.  , -0.25])
+467.8986 	EXP 	MainInt2: text = "Please press 'spacebar' to begin."
+467.8986 	EXP 	MainInt2: height = 0.05
+467.8986 	EXP 	Blocks1: pos = array([0. , 0.2])
+467.8986 	EXP 	Blocks1: text = 'Task Block: 1 of 16'
+467.8986 	EXP 	Blocks1: height = 0.05
+467.8986 	EXP 	MainInt1: autoDraw = True
+467.8986 	EXP 	Blocks1: autoDraw = True
+467.8986 	EXP 	MainInt1: text = "Rule: Press 'space' when you see the letter 'x' or 'X'."
+467.8986 	EXP 	Blocks1: text = 'Task Block: 1 of 16'
+469.1692 	DATA 	Keypress: space
+470.8836 	EXP 	MainInt2: autoDraw = True
+470.8836 	EXP 	MainInt2: text = "Please press 'spacebar' to begin."
+472.4039 	DATA 	Keypress: space
+472.4198 	EXP 	Imported Conditions/Version_1/zeroback(1)_v1.xlsx as conditions, 10 conditions, 2 params
+472.4200 	EXP 	Created sequence: sequential, trialTypes=10, nReps=1, seed=None
+472.4202 	EXP 	New trial (rep=0, index=0): {'LettersDisplayed': 'b', 'Correctness': 'None'}
+472.4274 	EXP 	MainInt1: autoDraw = False
+472.4274 	EXP 	MainInt2: autoDraw = False
+472.4274 	EXP 	Blocks1: autoDraw = False
+472.4274 	EXP 	ISI_Main: pos = array([0., 0.])
+472.4274 	EXP 	ISI_Main: ori = 0.0
+472.4274 	EXP 	ISI_Main: text = '+'
+472.4274 	EXP 	ISI_Main: autoDraw = True
+474.3561 	EXP 	ISI_Main: autoDraw = False
+474.3561 	EXP 	ISI_Main: autoDraw = False
+474.3561 	EXP 	N_backD: text = 'b'
+474.3561 	EXP 	N_backD: autoDraw = True
+476.3503 	EXP 	New trial (rep=0, index=1): {'LettersDisplayed': 'T', 'Correctness': 'None'}
+476.3565 	EXP 	N_backD: autoDraw = False
+476.3565 	EXP 	N_backD: autoDraw = False
+476.3565 	EXP 	ISI_Main: pos = array([0., 0.])
+476.3565 	EXP 	ISI_Main: ori = 0.0
+476.3565 	EXP 	ISI_Main: text = '+'
+476.3565 	EXP 	ISI_Main: autoDraw = True
+478.3198 	EXP 	ISI_Main: autoDraw = False
+478.3198 	EXP 	ISI_Main: autoDraw = False
+478.3198 	EXP 	N_backD: text = 'T'
+478.3198 	EXP 	N_backD: autoDraw = True
+480.3132 	EXP 	New trial (rep=0, index=2): {'LettersDisplayed': 'L', 'Correctness': 'None'}
+480.3209 	EXP 	N_backD: autoDraw = False
+480.3209 	EXP 	ISI_Main: pos = array([0., 0.])
+480.3209 	EXP 	ISI_Main: ori = 0.0
+480.3209 	EXP 	ISI_Main: text = '+'
+480.3209 	EXP 	ISI_Main: autoDraw = True
+482.1748 	EXP 	ISI_Main: autoDraw = False
+482.1748 	EXP 	ISI_Main: autoDraw = False
+482.1748 	EXP 	N_backD: text = 'L'
+482.1748 	EXP 	N_backD: autoDraw = True
+484.1704 	EXP 	New trial (rep=0, index=3): {'LettersDisplayed': 'x', 'Correctness': 'space'}
+484.1781 	EXP 	N_backD: autoDraw = False
+484.1781 	EXP 	ISI_Main: pos = array([0., 0.])
+484.1781 	EXP 	ISI_Main: ori = 0.0
+484.1781 	EXP 	ISI_Main: text = '+'
+484.1781 	EXP 	ISI_Main: autoDraw = True
+485.1892 	DATA 	Keypress: escape
+488.7269 	EXP 	window1: mouseVisible = True

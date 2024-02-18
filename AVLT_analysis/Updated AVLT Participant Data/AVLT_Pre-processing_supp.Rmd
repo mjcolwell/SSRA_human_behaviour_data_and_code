@@ -1,0 +1,125 @@
+---
+title: "AVLT Pre-processing"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+##Required R packages
+
+You will need the following packages installed and loaded before executing the below code chunks. 
+
+```{r libraries, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse) # for general data manipulation
+library(gtools) # for ordering columns
+library(knitr)
+library(stringr)
+library(purrr)
+```
+
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+#first step is drawing out only the numbers we need into a tidy data frame
+
+AVLT_tidy <- data.frame(matrix(ncol = 24, nrow = 15)) #create an empty data frame
+
+colnames(AVLT_tidy) <- c('Trial_1_correct', 'Trial_2_correct', 'Trial_3_correct','Trial_4_correct','Trial_5_correct','List_B_correct', 'Short_delay_correct', 'Long_delay_correct', 'Trial_1_repetitions', 'Trial_2_repetitions', 'Trial_3_repetitions', 'Trial_4_repetitions', 'Trial_5_repetitions', 'List_B_repetitions', 'Short_delay_repetitions', 'Long_delay_repetitions', 'Trial_1_intrusions', 'Trial_2_intrusions', 'Trial_3_intrusions', 'Trial_4_intrusions', 'Trial_5_intrusions', 'List_B_intrusions', 'Short_delay_intrusions', 'Long_delay_intrusions') #set column names
+
+AVLT_tidy[1:15,1] <- AVLT[16:30,2] # extract trial 1 correct
+
+AVLT_tidy[1:15,2] <- AVLT[16:30,6] # extract trial 2 correct
+
+AVLT_tidy[1:15,3] <- AVLT[16:30,10] # extract trial 3 correct
+
+AVLT_tidy[1:15,4] <- AVLT[16:30,14] # extract trial 4 correct
+ 
+AVLT_tidy[1:15,5] <- AVLT[16:30,18] # extract trial 5 correct
+
+AVLT_tidy[1:15,6] <- AVLT[39:53,2] # extract list B correct
+
+AVLT_tidy[1:15,7] <- AVLT[39:53,6] # extract short delay correct
+
+AVLT_tidy[1:15,8] <- AVLT[39:53,10] #extract long delay correct
+
+AVLT_tidy[1:15,9] <- AVLT[16:30, 3] #extract trial 1 repetitions
+
+AVLT_tidy[1:15,10] <- AVLT[16:30,7] #extract trial 2 repetitions
+
+AVLT_tidy[1:15,11] <- AVLT[16:30,11] #extract trial 3 repetitions
+
+AVLT_tidy[1:15,12] <- AVLT[16:30,15] #extract trial 4 repetitions
+
+AVLT_tidy[1:15,13] <- AVLT[16:30,19] #extract trial 5 repetitions
+
+AVLT_tidy[1:15,14] <- AVLT[39:53,3] #extract list B repetitions
+
+AVLT_tidy[1:15,15] <- AVLT[39:53,7] #extract short delay repetitions
+
+AVLT_tidy[1:15,16] <- AVLT[39:53,11] #extract long delay repetitions
+
+AVLT_tidy[1:15,17] <- AVLT[16:30,4] #extract trial 1 intrusions
+
+AVLT_tidy[1:15,18] <- AVLT[16:30,8] #extract trial 2 intrusions
+
+AVLT_tidy[1:15,19] <- AVLT[16:30,12] #extract trial 3 intrusions
+
+AVLT_tidy[1:15,20] <- AVLT[16:30,16] #extract trial 4 intrusions
+
+AVLT_tidy[1:15,21] <- AVLT[16:30,20] #extract trial 5 intrusions
+
+AVLT_tidy[1:15,22] <- AVLT[39:53,4] #extract list B intrusions
+
+AVLT_tidy[1:15,23] <- AVLT[39:53,8] #extract short delay intrusions
+
+AVLT_tidy[1:15,24] <- AVLT[39:53,12] #extract long delay intrusions
+
+
+AVLT_tidy <- data.frame(sapply(AVLT_tidy, function(x) as.numeric(as.character(x)))) #convert all columns from character into numeric
+
+
+#AVLT_tidy[1:15,][AVLT_tidy[1:15,] == 1] <- 0 #for some reason, my script did not need this because numbers were coded 1 0s automatically.
+# AVLT_tidy[1:15,][AVLT_tidy[1:15,] == 2] <- 1
+
+#once we've just got out the data we need, check in environment that AVLT_tidy is classifying columns as numeric ("num") 
+
+#second step is creating a dataframe with the summed variables that we want 
+
+AVLT_summary <- data.frame(matrix(ncol = 28, nrow = 1)) #to do update column numbers
+
+colnames(AVLT_summary) <- c('Trial_1_total_correct', 'Trial_2_total_correct', 'Trial_3_total_correct', 'Trial_4_total_correct', 'Trial_5_total_correct', 'list_B_total_correct', 'Short_delay_total_correct', 'Long_delay_total_correct', 'Trial_1_total_repetitions', 'Trial_2_total_repetitions', 'Trial_3_total_repetitions', 'Trial_4_total_repetitions', 'Trial_5_total_repetitions', 'List_B_total_repetitions', 'Short_delay_total_repetitions', 'Long_delay_total_repetitions', 'Trial_1_total_intrusions', 'Trial_2_total_intrusions', 'Trial_3_total_intrusions', 'Trial_4_total_intrusions', 'Trial_5_total_intrusions', 'List_B_total_intrusions', 'Short_delay_total_intrusions', 'Long_delay_total_intrusions', 'Total_repetitions_across_trials', 'Total_intrusions_across_trials', 'Correct_Responses_Across_Trials_1_to_5', 'Correct_Responses_Across_Trials_1_to_8') #set column names
+
+for (i in 1:ncol(AVLT_tidy)) {
+  AVLT_summary[1,i] <- sum(AVLT_tidy[1:15,i], na.rm=TRUE)}# na.rm is true is needed to sum the non-missing numbers
+
+
+ #above for loop is replacing below code 
+ #AVLT_summary[1,1] <- sum(AVLT_tidy[1:15,1], na.rm=TRUE)
+ #AVLT_summary[1,2] <- sum(AVLT_tidy[1:15,2], na.rm=TRUE)
+ #AVLT_summary[1,3] <- sum(AVLT_tidy[1:15,3], na.rm=TRUE)
+
+#Sum all the repetitions across trials
+AVLT_summary[1,25] <- sum(AVLT_tidy[, c('Trial_1_repetitions', 'Trial_2_repetitions', 'Trial_3_repetitions', 'Trial_4_repetitions', 'Trial_5_repetitions', 'List_B_repetitions', 'Short_delay_repetitions', 'Long_delay_repetitions')], na.rm = TRUE)
+
+#Sum all the intrusions across trials
+AVLT_summary[1,26] <- sum(AVLT_tidy[, c('Trial_1_intrusions', 'Trial_2_intrusions', 'Trial_3_intrusions', 'Trial_4_intrusions', 'Trial_5_intrusions', 'List_B_intrusions', 'Short_delay_intrusions', 'Long_delay_intrusions')], na.rm = TRUE)
+
+#Sum correct responses across trials 1-5
+AVLT_summary[1,27] <- sum(AVLT_tidy[, c('Trial_1_correct', 'Trial_2_correct', 'Trial_3_correct','Trial_4_correct','Trial_5_correct')], na.rm = TRUE)
+
+#Sum correct responses across trials 1-8, which will be used as a composite score
+AVLT_summary[1,28] <- sum(AVLT_tidy[, c('Trial_1_correct', 'Trial_2_correct', 'Trial_3_correct','Trial_4_correct','Trial_5_correct', 'List_B_correct', 'Short_delay_correct', 'Long_delay_correct')], na.rm = TRUE)
+
+#Calculate 'learning over trials' score (Sum of correct responses - (5 x trial 1)) (not sure if this is needed)
+#AVLT_summary[1,28] <- AVLT_summary$Correct_Responses_Across_Trials_1_to_5 - (5 * AVLT_summary$Trial_1_total_correct)
+
+write.csv(AVLT_summary,outputname, row.names = FALSE ) #write to a csv file
+
+
+
+```
+
+
+

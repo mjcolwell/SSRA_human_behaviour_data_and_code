@@ -1,0 +1,499 @@
+---
+title: "PILT_Comp_Analysis_FENCOG"
+author: "Michael Colwell"
+date: '2023-04-09'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Quality check and analysis scripts for OMT data in FENCOG project.
+
+```{r libraries, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gtools)
+library(knitr)
+library(data.table)
+library(ggplot2)
+library(car)
+library(ggbeeswarm)
+library(ggrepel)
+library(readxl)
+library(data.table)
+library(openxlsx)
+library(ggpubr)
+library(rstatix)
+library("ez")
+library(ggsignif)
+library(RColorBrewer)
+library(emmeans)
+library(plotrix)
+library(sdamr)
+library(cowplot)
+library(lme4)
+library(stringr)
+library(cowplot)
+library(lme4)
+library(effectsize)
+library(lmerTest)
+library(ggdist)
+```
+
+## Set Dir and load in file
+
+```{r b0, echo=FALSE, include=TRUE}
+setwd("C:/Users/micha/Desktop/PILT_Reinforcement_Learning_Mod")
+
+MasterPILTc <- read.csv("Reinforcement_Learning_PILT_full.csv", header = TRUE, stringsAsFactors = FALSE)
+```
+
+##Model fit check: compare the inverse temp model (pess) with outcome senstivity model - LRs and free params
+
+```{r b0, echo=FALSE, include=TRUE}
+# Split out trial types
+# MasterPILTc_CLoss <- MasterPILTc %>% filter(!str_detect(Trial_type, "Reward"))
+# MasterPILTc_CReward <- MasterPILTc %>% filter(!str_detect(Trial_type, "Punishment"))
+
+# Learning Rate across models (Inverse temp and reward sensitivity models)
+
+LR_Scatter <- ggscatter(MasterPILTc,
+  x = "LR_recipmodel", y = "LR_inv_recipmodel",
+  add = "reg.line", # Add regressin line
+  add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+  conf.int = TRUE
+) + # Add confidence interval
+  stat_cor(p.accuracy = 0.001, r.accuracy = 0.01) +
+  ylab("Learning Rate (Log) - Outcome sensitivity Model\n") +
+  xlab("Learning Rate (Log) - Inverse temperature Model\n") +
+  theme_minimal() +
+  theme(legend.position = "none", plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm"), axis.title = element_text(size = 14), text = element_text(size = 14), axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14))
+
+# Exact match
+
+# Checking parameter matches across models - outcome sensitivity and inverse temp
+
+
+# Compute correlation coefficient and p-value
+cor_result <- cor.test(MasterPILTc$OutSens_recipmodel, MasterPILTc$Invtemp_recipmodel)
+
+scatterplot_example <- ggplot(data = MasterPILTc, aes(x = OutSens_recipmodel, y = Invtemp_recipmodel)) +
+  geom_point(size = 4, alpha = 0.8, color = "forestgreen") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  labs(
+    title = "",
+    x = "\nLog outcome sensitivity (ρ)",
+    y = "Log inverse temperature (β)\n"
+  ) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  theme_minimal() +
+  theme(legend.position = "none", plot.margin = unit(c(0.1, 0.1, 0.1, 0.1), "cm"), axis.title = element_text(size = 14), text = element_text(size = 14), axis.text.x = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title.x = element_text(size = 18), axis.title.y = element_text(size = 18)) +
+  annotate("text",
+    x = Inf, y = -Inf, hjust = 1, vjust = -0.5, size = 5,
+    label = paste(
+      "R =", round(cor_result$estimate, 3),
+      "\nP <", ifelse(cor_result$p.value < 0.001, 0.001, format(cor_result$p.value, scientific = FALSE, digits = 3))
+    )
+  )
+##
+```
+
+##Parsing + Demographic inclusion
+
+```{r b0, echo=FALSE, include=TRUE}
+## Demographics
+
+setwd("C:/Users/micha/Desktop/DemographicData")
+
+Demographics <- read.xlsx("Demo4Analysis.xlsx")
+
+Demographics$Participant.ID <- as.factor(Demographics$Participant.ID)
+
+MasterPILTc <- merge(MasterPILTc, Demographics, by = "Participant.ID")
+
+# Rename trials to be consistent with non-model analysis
+
+MasterPILTc$Trial_type <- recode_factor(MasterPILTc$Trial_type, "Punishment" = "Loss trials")
+MasterPILTc$Trial_type <- recode_factor(MasterPILTc$Trial_type, "Reward" = "Win trials")
+
+# Split by PRE/POST
+
+MasterPILTc_CPost <- MasterPILTc %>% filter(!str_detect(PRE.POST, "PRE"))
+MasterPILTc_CPre <- MasterPILTc %>% filter(!str_detect(PRE.POST, "POST"))
+
+rm(MasterPILTc, Demographics)
+```
+
+##Graphs for publication
+
+```{r Chunk 7 - Generation of figures for report, echo=FALSE}
+# MasterPILTc_CPostLoss <- MasterPILTc_CPost %>% filter(!str_detect(Trial_type, "Reward"))
+
+### Outcome sensitivity across trial types at follow-up
+
+# Edit significance value to to * instead of ** to reflect EMM.
+
+Boxplot_Outcome_Sens <- MasterPILTc_CPost %>% ggplot(aes(x = Allocation, y = OutSens_recipmodel, fill = Allocation)) +
+  facet_wrap(~Trial_type) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("*" = 0.001, "*" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Log outcome sensitivity (ρ)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+### Outcome sensitivity across trial types at baseline
+
+Boxplot_Outcome_Sens <- MasterPILTc_CPre %>% ggplot(aes(x = Allocation, y = OutSens_recipmodel, fill = Allocation)) +
+  facet_wrap(~Trial_type) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "*" = 0.01, "**" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 8
+  ) +
+  labs(title = " ") +
+  ylab("Log outcome sensitivity (ρ)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(-2, NA)
+
+####
+
+# Inverse temperature at follow-up
+
+Boxplot_InverseTemp <- MasterPILTc_CPost %>% ggplot(aes(x = Allocation, y = Invtemp_recipmodel, fill = Allocation)) +
+  facet_wrap(~Trial_type) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("*" = 0.001, "*" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Log inverse temperature (β)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+# Inverse temperature at baseline
+
+Boxplot_InverseTemp <- MasterPILTc_CPre %>% ggplot(aes(x = Allocation, y = Invtemp_recipmodel, fill = Allocation)) +
+  facet_wrap(~Trial_type) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "*" = 0.01, "**" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Log inverse temperature (β)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(-2, NA)
+
+###
+
+# Learning Rate at follow-up
+
+Boxplot_LR <- MasterPILTc_CPost %>% ggplot(aes(x = Allocation, y = LR_recipmodel, fill = Allocation)) +
+  facet_wrap(~Trial_type) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("*" = 0.001, "*" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Log learning rate (α)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+# Learning Rate at baseline
+
+Boxplot_LR <- MasterPILTc_CPre %>% ggplot(aes(x = Allocation, y = LR_recipmodel, fill = Allocation)) +
+  facet_wrap(~Trial_type) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("*" = 0.001, "*" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Log learning rate (α)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+######
+
+
+# Publication combined graph
+
+# CombinedFig <- plot_grid(PlotGraphLearningRate, PlotGraphOutSens)
+````
+  
+
+```{r b0, echo=FALSE, include=TRUE}
+# ANCOVA model setup and analysis
+
+# Parse data for model 1 (Outcome sensitivity)
+
+ANCOdf1 <- MasterPILTc_CPost[c("Allocation", "Participant.ID", "Trial_type", "LR_recipmodel", "OutSens_recipmodel", "Gender")]
+
+ANCOdf1 <- rename(ANCOdf1, Learning.Rate.Post = LR_recipmodel)
+ANCOdf1 <- rename(ANCOdf1, Out.Sens.Post = OutSens_recipmodel)
+
+ANCOdf2 <- MasterPILTc_CPre[c("Allocation", "Participant.ID", "Trial_type", "LR_recipmodel", "OutSens_recipmodel", "Gender")]
+
+ANCOdf2 <- rename(ANCOdf2, Learning.Rate.Pre = LR_recipmodel)
+ANCOdf2 <- rename(ANCOdf2, Out.Sens.Pre = OutSens_recipmodel)
+
+ANCOdfcomp <- left_join(ANCOdf1, ANCOdf2, by = c("Participant.ID", "Allocation", "Trial_type", "Gender"))
+
+# Model 1 - Learning Rate
+
+ANCOVA_post_Error <- aov(Learning.Rate.Post ~ Allocation + Trial_type + Allocation:Trial_type + Learning.Rate.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_Error)
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(Learning.Rate.Post ~ Allocation + Trial_type + Allocation * Trial_type + Gender + Gender:Allocation + Gender:Allocation:Trial_type + Learning.Rate.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(Learning.Rate.Post, type = "mean_sd")
+
+# Model 1 - Outcome sensitivity
+
+ANCOVA_post_Error <- aov(Out.Sens.Post ~ Allocation + Out.Sens.Pre + Trial_type + Allocation:Trial_type + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_Error)
+
+lm_model <- lmer(Out.Sens.Post ~ Allocation + Trial_type + Allocation:Trial_type + Out.Sens.Pre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Significant effect - proceed to post-hoc and effect size calculation.
+
+# Calculate estimated marginal means (EMMs) for Allocation*Condition interaction
+lm_model <- lm(Out.Sens.Post ~ Allocation + Trial_type + Allocation:Trial_type, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~ Allocation | Trial_type)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+
+# Descriptive stats
+
+ANCOdf1 %>%
+  group_by(Trial_type, Allocation) %>%
+  get_summary_stats(Out.Sens.Post, type = "mean_sd")
+
+# Gender analysis
+
+ANCOVA_Post_RT <- aov(Out.Sens.Post ~ Allocation + Trial_type + Allocation * Trial_type + Gender + Gender:Allocation + Gender:Allocation:Trial_type + Out.Sens.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(Out.Sens.Post, type = "mean_sd")
+
+###################################
+###################################
+###################################
+
+# Parse data for model 2 (Inverse temp)
+
+ANCOdf1 <- MasterPILTc_CPost[c("Allocation", "Participant.ID", "Trial_type", "LR_inv_recipmodel", "Invtemp_recipmodel")]
+
+ANCOdf1 <- rename(ANCOdf1, Learning.Rate.Post = LR_inv_recipmodel)
+ANCOdf1 <- rename(ANCOdf1, Out.Sens.Post = Invtemp_recipmodel)
+
+ANCOdf2 <- MasterPILTc_CPre[c("Allocation", "Participant.ID", "Trial_type", "LR_inv_recipmodel", "Invtemp_recipmodel")]
+
+ANCOdf2 <- rename(ANCOdf2, Learning.Rate.Pre = LR_inv_recipmodel)
+ANCOdf2 <- rename(ANCOdf2, Out.Sens.Pre = Invtemp_recipmodel)
+
+ANCOdfcomp <- left_join(ANCOdf1, ANCOdf2, by = c("Participant.ID", "Allocation", "Trial_type"))
+
+# Model 2 - Learning Rate (log)
+
+ANCOVA_post_Error <- aov(Learning.Rate.Post ~ Allocation + Trial_type + Allocation:Trial_type + Learning.Rate.Pre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_Error)
+
+# Model 2 - Inverse temperature (log)
+
+ANCOVA_post_Error <- aov(Out.Sens.Post ~ Allocation + Out.Sens.Pre + Trial_type + Allocation:Trial_type + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_post_Error)
+
+
+# Significant effect - proceed to post-hoc and effect size calculation.
+
+lm_model <- lmer(Out.Sens.Post ~ Allocation + Trial_type + Allocation:Trial_type + Out.Sens.Pre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Calculate estimated marginal means (EMMs) for Allocation*Condition interaction
+lm_model <- lm(Out.Sens.Post ~ Allocation + Trial_type + Allocation:Trial_type, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~ Allocation | Trial_type)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+
+# Descriptive stats
+
+ANCOdf1 %>%
+  group_by(Trial_type, Allocation) %>%
+  get_summary_stats(Out.Sens.Post, type = "mean_sd")
+
+#####################################################################################
+```

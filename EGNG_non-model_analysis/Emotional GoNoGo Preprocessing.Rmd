@@ -1,0 +1,2439 @@
+---
+title: "Emotional Go/No-Go R Markdown"
+author: "michael J Colwell"
+date: "17/02/2022"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+## Emotional Go/No-Go RMarkdown (February 17, 2022; Version 0.1)
+
+This is an RMarkdown to allow for reproducible and accurate preprocessing of the Emotional Go/No-Go Psychopy 
+task data created by michael Colwell (michael.colwell@psych.ox.ac.uk / ORCID 0000-0001-7846-2879).
+
+The task materials and preprocessing script are offered free of charge for researchers. **It is requested that researchers who publish data using these materials (task or preprocessing script) cite the code and/or preprocessing script for the task
+in relevant publications**. Our reference is:
+
+Colwell, michael J, Murphy, Susannah, & Harmer, Catherine J. (2022). Emotional Go/No-Go Task (Oxford) (Psychopy). Zenodo. https://doi.org/10.5281/zenodo.6207865
+
+##Chunk 0: Set-up chunk
+
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+```
+
+
+##Chunk 1: Loading required R packages
+
+You will need the following packages installed and loaded before executing the below code chunks. 
+
+```{r Chunk 1 - Libraries Setup, echo=FALSE, include=FALSE}
+library(dplyr)
+library(tidyverse)
+library(gtools)
+library(knitr)
+library(data.table)
+library(ggplot2)
+library(car)
+library(ggbeeswarm)
+library(ggrepel)
+library(readxl)
+library(data.table)
+library(openxlsx)
+library(ggpubr)
+library(sdamr)
+library(rstatix)
+library("ez")
+library(ggsignif)
+library(RColorBrewer)
+library(emmeans)
+library(plotrix)
+library(sdamr)
+library(cowplot)
+library(psycho)
+library(ggridges)
+library(viridis)
+library(ggstance)
+library(ggdist)
+library(gghalves)
+library(ggpp)
+library(effectsize)
+library(lme4)
+library(lmerTest)
+```
+
+#Begin preprocessing: Setting directory, merging files and deleting unnecessary columns
+
+You will first need to point to the directory of your task files, typically in the 'data' subfolder where the
+psychopy task is located. **Please edit the path directory below after the setwd function.**
+
+The next lines in the chunk of code will allow you to merge all data files (.csv) in the directory assigned above to a dataframe, and then delete extraneous columns from the dataframe.
+
+**Potential error**: "Error in rbind(deparse.level, ...) : numbers of columns of arguments do not match"
+**Solution**: One of the .csv files may not have run beyond the practice section, therefore not enough columns
+have generated. Delete this file and then continue.
+
+#Chunk 2: Loading files into memory and creating an aggregate
+
+```{r Chunk 2 - Loading Files, message=FALSE, warning=FALSE, include=FALSE}
+require("knitr")
+knitr::opts_knit$set(root.dir = "C:/Users/micha/Desktop/FENCOG_Raw_cleaned_dataset/")
+
+##### Set dir first!#########
+setwd("C:/Users/micha/Desktop/EGNG_non-model_analysis")
+#############################
+
+# Create file list
+GoNo_files <- list.files(pattern = glob2rx("*No*.csv"))
+
+# Attach and detach plyr to avoid library conflicts
+library(plyr)
+
+# Merge files based on file list
+GoNo <- do.call(rbind.fill, lapply(GoNo_files, function(x) read.csv(x, stringsAsFactors = FALSE)))
+
+detach("package:plyr", unload = TRUE)
+
+# Remove object to save space
+rm(GoNo_files)
+```
+
+#Chunk 3: Initial pre-processing of data to prepare for analyses
+
+```{r Chunk 3 - Initial Preprocessing, message=FALSE, warning=FALSE, include=FALSE}
+# Renaming columns or deleting unused columns to allow for better interpretation
+
+GoNo <- GoNo %>% rename(Task.version = Task.Version..required.to.run., Participant.ID = participant)
+
+GoNo <- GoNo %>% select(Participant.ID, Study.Name, Task.version, CorrectAnsP, PRE.POST, frameRate, Express, Instructions, FaceE, ColourT, Pract.corr, Pract.rt, ISIjitterPractice, PracticeFace.started, key_resp.corr, key_resp.rt, ISIjitter, FaceSet.started, Instructions, CondFile, CorrectAnsP, CondFile, BlockOrder, key_resp.keys)
+
+# Converting temporal value to interval that corresponds with milliseconds
+
+GoNo <- GoNo %>%
+  mutate(key_resp.rt = as.numeric(key_resp.rt) * 1000, Pract.rt = as.numeric(Pract.rt) * 1000, ISI.time = as.numeric(ISIjitter) * 100, ISI.time.pract = as.numeric(ISIjitterPractice) * 100)
+
+# Merging practice and real task data into one column
+
+GoNo <- GoNo %>% mutate(ISI = coalesce(ISI.time, ISI.time.pract))
+
+GoNo <- GoNo %>% mutate(FaceSet.started = as.numeric(FaceSet.started))
+
+GoNo <- GoNo %>% mutate(FaceSetStart = coalesce(PracticeFace.started, FaceSet.started))
+
+GoNo <- GoNo %>% mutate(Correct = coalesce(Pract.corr, key_resp.corr))
+
+GoNo <- GoNo %>% mutate(Response.Time = coalesce(key_resp.rt, Pract.rt))
+
+GoNo <- GoNo %>% select(-c(ISIjitter, ISIjitterPractice))
+
+# Create trial numbers so you can divide blocks for set-shifting analysis
+# You will want to change the 'length.out' value to the nrow of the df that was generated in chunk 2.
+
+GoNo$trial_number <- rep(1:524, length.out = 55544) ########## Change this or it will break!
+
+GoNo <- GoNo %>% mutate(Block_number = case_when(
+  (trial_number >= 43 & trial_number <= 122) ~ "1",
+  (trial_number >= 123 & trial_number <= 202) ~ "2",
+  (trial_number >= 203 & trial_number <= 282) ~ "3",
+  (trial_number >= 284 & trial_number <= 363) ~ "4",
+  (trial_number >= 364 & trial_number <= 443) ~ "5",
+  (trial_number >= 444 & trial_number <= 523) ~ "6",
+  TRUE ~ "NA"
+))
+```
+
+#Chunk 4 (Optional): Running initial data quality tests
+
+```{r Chunk 4 (Optional) - Initial quality checks, echo=FALSE}
+# Checking sample size matches expected sample size; you may need to divide by the number of visits/measurement points if repeated measures
+
+samplesize <- length(unique(GoNo$Participant.ID))
+
+print(samplesize)
+
+ifelse((trialcount <- 80), print("PASS"), print("FAIL"))
+
+trialcount <- plyr::count(GoNo$CondFile)
+
+CheckFpsRange <- range(GoNo$frameRate)
+
+Checkfps <- as.data.frame(table(GoNo$frameRate))
+Checkfps <- Checkfps %>% mutate(FPSChecker = case_when(
+  (Freq == 524) ~ "No frames dropped",
+  TRUE ~ "Frame drops detected - check original data file"
+))
+
+paste("Your fps range is ", CheckFpsRange[1], "-", CheckFpsRange[2], ". Any significant deviation from the testing computer monitor native refresh rate needs to be queried as may indicate software lag.", sep = "")
+
+print(Checkfps)
+rm(Checkfps)
+rm(CheckFpsRange)
+```
+
+#Chunk 5: Further preprocessing the dataframe 
+
+The following chunks will allow you to parse the data, including generating omission/commission error checks
+based on conditions set in the file.
+
+```{r Chunk 5 - Further preprocessing, message=FALSE, warning=FALSE, include=FALSE}
+# Generate columns which will allow distinguishing between commission or omission trials
+# Not every column here is used in the example report, however they may be helpful for your own specifications when generating
+# a report for analysis
+
+GoNo <- GoNo %>%
+  mutate(InhibitionType = case_when(
+    str_detect(Instructions, "blue") ~ "BlueInhibition",
+    str_detect(Instructions, "yellow") ~ "YellowInhibition",
+    TRUE ~ "NA"
+  ))
+
+# Column which defines the emotional distractor during 'no-go' trials per block
+
+GoNo <- GoNo %>% mutate(EmotInhibitionType = case_when(
+  str_detect(CondFile, "YellowHappyStop") ~ "HappyInhibition",
+  str_detect(CondFile, "BlueHappyStop") ~ "HappyInhibition",
+  str_detect(CondFile, "BlueFearStop") ~ "FearInhibition",
+  str_detect(CondFile, "YellowFearStop") ~ "FearInhibition",
+  str_detect(CondFile, "YellowScramStop") ~ "ControlInhibition",
+  TRUE ~ "NA"
+))
+
+# Break into trialtypes only (irrespective of block and rule)
+
+GoNo <- GoNo %>% mutate(TrialType = case_when(
+  (Express == "Fear" & CorrectAnsP == "space") ~ "FearGoTrial",
+  (Express == "Fear" & CorrectAnsP == "None") ~ "FearNoGoTrial",
+  (Express == "Happy" & CorrectAnsP == "None") ~ "HappyNoGoTrial",
+  (Express == "Happy" & CorrectAnsP == "space") ~ "HappyGoTrial",
+  (Express == "Scramble" & CorrectAnsP == "None") ~ "ConNoGoTrl",
+  (Express == "Scramble" & CorrectAnsP == "space") ~ "ConGoTrl",
+  TRUE ~ "NA"
+))
+
+
+GoNo <- GoNo %>%
+  mutate(OmComCheck = case_when(
+    (InhibitionType == "BlueInhibition" & ColourT == "Blue") ~ "CommissionCheck",
+    (InhibitionType == "BlueInhibition" & ColourT == "Yellow") ~ "OmissionCheck",
+    (InhibitionType == "YellowInhibition" & ColourT == "Yellow") ~ "CommissionCheck",
+    (InhibitionType == "YellowInhibition" & ColourT == "Blue") ~ "OmissionCheck",
+    TRUE ~ "NA"
+  ))
+
+
+GoNo <- GoNo %>%
+  mutate(OmComFreq = case_when(
+    (OmComCheck == "CommissionCheck" & Correct == 1) ~ "ComPass",
+    (OmComCheck == "OmissionCheck" & Correct == 1) ~ "OmPass",
+    (OmComCheck == "CommissionCheck" & Correct == 0) ~ "ComError",
+    (OmComCheck == "OmissionCheck" & Correct == 0) ~ "OmError",
+    TRUE ~ "NA"
+  ))
+
+# Generate columns to allow checking the four types of accuracy: 1) Go trial correct (SP_pressed), 2) Go trial fail (SP_fail),
+# 3) No-go/inhibition trial accuracy (SNP_nopress), 4) No-go trial error (SNP_fail)
+
+GoNo <- GoNo %>%
+  mutate(SP_pressed = case_when(
+    str_detect(OmComFreq, "OmPass") ~ 1,
+    TRUE ~ 0
+  ))
+GoNo <- GoNo %>%
+  mutate(SNP_nopress = case_when(
+    str_detect(OmComFreq, "ComPass") ~ 1,
+    TRUE ~ 0
+  ))
+GoNo <- GoNo %>%
+  mutate(SP_fail = case_when(
+    str_detect(OmComFreq, "OmError") ~ 1,
+    TRUE ~ 0
+  ))
+GoNo <- GoNo %>%
+  mutate(SNP_fail = case_when(
+    str_detect(OmComFreq, "ComError") ~ 1,
+    TRUE ~ 0
+  ))
+
+# Replacing 0s where they should not appear so they do not appear in summaries
+
+GoNo$SP_pressed[GoNo$TrialType == "FearNoGoTrial"] <- NA
+GoNo$SP_fail[GoNo$TrialType == "FearNoGoTrial"] <- NA
+GoNo$SNP_nopress[GoNo$TrialType == "FearGoTrial"] <- NA
+GoNo$SNP_fail[GoNo$TrialType == "FearGoTrial"] <- NA
+
+GoNo$SP_pressed[GoNo$TrialType == "HappyNoGoTrial"] <- NA
+GoNo$SP_fail[GoNo$TrialType == "HappyNoGoTrial"] <- NA
+GoNo$SNP_nopress[GoNo$TrialType == "HappyGoTrial"] <- NA
+GoNo$SNP_fail[GoNo$TrialType == "HappyGoTrial"] <- NA
+
+GoNo$SP_pressed[GoNo$TrialType == "ConNoGoTrl"] <- NA
+GoNo$SP_fail[GoNo$TrialType == "ConNoGoTrl"] <- NA
+GoNo$SNP_nopress[GoNo$TrialType == "ConGoTrl"] <- NA
+GoNo$SNP_fail[GoNo$TrialType == "ConGoTrl"] <- NA
+
+
+
+# Create column (GoRT) for response time for only Go trials (correct trials)
+
+GoNo <- GoNo %>% mutate(GoRT = ifelse(CorrectAnsP == "space", Response.Time, "NA"))
+
+GoNo <- GoNo %>% mutate(GoRT = as.numeric(GoRT))
+
+###
+
+
+GoNo <- GoNo %>% mutate(NoGoErrorRT = ifelse(CorrectAnsP == "None", Response.Time, "NA"))
+
+GoNo <- GoNo %>% mutate(NoGoErrorRT = as.numeric(NoGoErrorRT))
+
+###
+
+GoNo <- GoNo %>%
+  mutate(RealorPractice = case_when(
+    (Pract.corr == 0) ~ "Practice", (Pract.corr == 1) ~ "Practice",
+    (key_resp.corr == 0) ~ "RealTask", (key_resp.corr == 1) ~ "RealTask", TRUE ~ "NA"
+  ))
+GoNo <- GoNo %>%
+  mutate(HotorColdTrial = case_when(
+    str_detect(Express, "Fear") ~ "Hot",
+    str_detect(Express, "Happy") ~ "Hot",
+    str_detect(Express, "Scramble") ~ "Cold",
+    TRUE ~ "NA"
+  ))
+
+GoNo <- GoNo %>%
+  transform(RT_hits_corr = ifelse(SP_pressed == 1, GoRT, NA))
+
+# Create a column that distinguishes between blocks with and without set-shifting
+# Please keep in mind these is a mistake in condfile where it says 'BlueBlueYellow' but it should say 'YellowBlueBlue';
+# this will not impact results, it just hinders readability of the code.
+
+GoNo <- GoNo %>%
+  mutate(SetShiftBlocks = case_when(
+    (BlockOrder == "YellowYellowBlue" & Block_number >= 1 & Block_number <= 3) ~ "YYB",
+    (BlockOrder == "BlueBlueYellow" & Block_number >= 1 & Block_number <= 3) ~ "YBB",
+    (BlockOrder == "YellowYellowBlue" & Block_number >= 4 & Block_number <= 6) ~ "YYB",
+    (BlockOrder == "BlueBlueYellow" & Block_number >= 4 & Block_number <= 6) ~ "YBB",
+    TRUE ~ "NA"
+  ))
+
+GoNo <- GoNo %>%
+  mutate(SetShift = case_when(
+    (SetShiftBlocks == "YYB" & Block_number == "1") ~ "No",
+    (SetShiftBlocks == "YYB" & Block_number == "2") ~ "No",
+    (SetShiftBlocks == "YYB" & Block_number == "3") ~ "Yes",
+    (SetShiftBlocks == "YBB" & Block_number == "4") ~ "Yes",
+    (SetShiftBlocks == "YBB" & Block_number == "5") ~ "Yes",
+    (SetShiftBlocks == "YBB" & Block_number == "6") ~ "No",
+    (SetShiftBlocks == "YBB" & Block_number == "1") ~ "No",
+    (SetShiftBlocks == "YBB" & Block_number == "2") ~ "Yes",
+    (SetShiftBlocks == "YBB" & Block_number == "3") ~ "No",
+    (SetShiftBlocks == "YYB" & Block_number == "4") ~ "Yes",
+    (SetShiftBlocks == "YYB" & Block_number == "5") ~ "No",
+    (SetShiftBlocks == "YYB" & Block_number == "6") ~ "Yes",
+    TRUE ~ "NA"
+  ))
+
+GoNo <- GoNo %>% filter(!grepl("NA", SetShift))
+```
+
+#Chunk 5.5 (OPTIONAL): Parsing for HDDM modelling (analysis done seperately with python script)
+
+```{r Chunk 5.5 - (DEPRECIATED) Parsing and testing DDM, echo=FALSE, include=TRUE.}
+DDM <- GoNo
+
+DDM <- DDM %>% filter(!grepl("NA", RealorPractice))
+
+DDM$subj_idx <- gsub("P00", "", DDM$Participant.ID)
+
+DDM$subj_idx <- gsub("P0", "", DDM$subj_idx)
+
+DDM$subj_idx <- as.numeric(DDM$subj_idx)
+
+DDM$rt <- DDM$Response.Time / 1000
+
+DDM <- DDM %>%
+  mutate(stimulus = case_when(
+    (TrialType == "FearGoTrial") ~ "1",
+    (TrialType == "HappyGoTrial") ~ "1",
+    (TrialType == "ConGoTrl") ~ "1",
+    (TrialType == "FearNoGoTrial") ~ "0",
+    (TrialType == "HappyNoGoTrial") ~ "0",
+    (TrialType == "ConNoGoTrl") ~ "0",
+    TRUE ~ "NA"
+  ))
+
+
+DDM <- DDM %>% mutate(response = case_when(
+  (key_resp.keys == "space") ~ "1",
+  (key_resp.keys == "None") ~ "0",
+  TRUE ~ "NA"
+))
+
+####
+
+# You need to split the data into subchunks because the HDDM algorithm is very computationally intensive and leads to the kernel crashing on the docker image. You will split and then remerge everything after the modelling has taken place.
+
+# First, get split out emotional conditions
+
+# Pre
+
+EmotionalDDM_Post <- DDM
+
+EmotionalDDM_Post <- EmotionalDDM_Post %>% filter(!grepl("Scramble", Express))
+
+EmotionalDDM_Post <- EmotionalDDM_Post %>% filter(!grepl("Post", PRE.POST))
+
+EmotionalDDM_Post <- EmotionalDDM_Post %>%
+  mutate(condition = case_when(
+    (TrialType == "FearGoTrial") ~ "1",
+    (TrialType == "HappyGoTrial") ~ "0",
+    (TrialType == "FearNoGoTrial") ~ "1",
+    (TrialType == "HappyNoGoTrial") ~ "0",
+    TRUE ~ "NA"
+  ))
+
+EmotionalDDM_Post <- EmotionalDDM_Post %>% select(rt, response, subj_idx, condition, correct = key_resp.corr, stimulus)
+
+# write.csv(EmotionalDDM_Post, "C:/Users/micha/Desktop/EmotionalDDM_Post.csv", row.names=TRUE)
+
+FearDDM_Post <- EmotionalDDM_Post %>% filter(!grepl("0", condition))
+HappyDDM_Post <- EmotionalDDM_Post %>% filter(!grepl("1", condition))
+
+FearDDM_Post_1 <- subset(FearDDM_Post, subj_idx >= 1 & subj_idx <= 27)
+FearDDM_Post_2 <- subset(FearDDM_Post, subj_idx > 27)
+
+HappyDDM_Post_1 <- subset(HappyDDM_Post, subj_idx >= 1 & subj_idx <= 27)
+HappyDDM_Post_2 <- subset(HappyDDM_Post, subj_idx > 27)
+
+write.csv(FearDDM_Post_1, "C:/Users/micha/Desktop/FearDDM_Post_1.csv", row.names = TRUE)
+write.csv(FearDDM_Post_2, "C:/Users/micha/Desktop/FearDDM_Post_2.csv", row.names = TRUE)
+
+write.csv(HappyDDM_Post_1, "C:/Users/micha/Desktop/HappyDDM_Post_1.csv", row.names = TRUE)
+write.csv(HappyDDM_Post_2, "C:/Users/micha/Desktop/HappyDDM_Post_2.csv", row.names = TRUE)
+
+# Pre
+
+EmotionalDDM_Pre <- DDM
+
+EmotionalDDM_Pre <- EmotionalDDM_Pre %>% filter(!grepl("Scramble", Express))
+
+EmotionalDDM_Pre <- EmotionalDDM_Pre %>% filter(!grepl("Pre", PRE.POST))
+
+EmotionalDDM_Pre <- EmotionalDDM_Pre %>%
+  mutate(condition = case_when(
+    (TrialType == "FearGoTrial") ~ "1",
+    (TrialType == "HappyGoTrial") ~ "0",
+    (TrialType == "FearNoGoTrial") ~ "1",
+    (TrialType == "HappyNoGoTrial") ~ "0",
+    TRUE ~ "NA"
+  ))
+
+EmotionalDDM_Pre <- EmotionalDDM_Pre %>% select(rt, response, subj_idx, condition, correct = key_resp.corr, stimulus)
+
+write.csv(EmotionalDDM_Pre, "C:/Users/micha/Desktop/EmotionalDDM_Pre.csv", row.names = TRUE)
+
+FearDDM_Pre <- EmotionalDDM_Pre %>% filter(!grepl("0", condition))
+HappyDDM_Pre <- EmotionalDDM_Pre %>% filter(!grepl("1", condition))
+
+FearDDM_Pre_1 <- subset(FearDDM_Pre, subj_idx >= 1 & subj_idx <= 27)
+FearDDM_Pre_2 <- subset(FearDDM_Pre, subj_idx > 27)
+
+HappyDDM_Pre_1 <- subset(HappyDDM_Pre, subj_idx >= 1 & subj_idx <= 27)
+HappyDDM_Pre_2 <- subset(HappyDDM_Pre, subj_idx > 27)
+
+write.csv(FearDDM_Pre_1, "C:/Users/micha/Desktop/FearDDM_Pre_1.csv", row.names = TRUE)
+write.csv(FearDDM_Pre_2, "C:/Users/micha/Desktop/FearDDM_Pre_2.csv", row.names = TRUE)
+
+write.csv(HappyDDM_Pre_1, "C:/Users/micha/Desktop/HappyDDM_Pre_1.csv", row.names = TRUE)
+write.csv(HappyDDM_Pre_2, "C:/Users/micha/Desktop/HappyDDM_Pre_2.csv", row.names = TRUE)
+
+###
+
+# Split it out as fear and scramble (fear is arbitrary, you will be deleting this so you can
+# merge all three conditions)
+
+FearScramble_Post <- DDM
+
+FearScramble_Post <- FearScramble_Post %>% filter(!grepl("Happy", Express))
+
+FearScramble_Post <- FearScramble_Post %>% filter(!grepl("Post", PRE.POST))
+
+FearScramble_Post <- FearScramble_Post %>%
+  mutate(condition = case_when(
+    (TrialType == "FearGoTrial") ~ "1",
+    (TrialType == "ConGoTrl") ~ "0",
+    (TrialType == "FearNoGoTrial") ~ "1",
+    (TrialType == "ConNoGoTrl") ~ "0",
+    TRUE ~ "NA"
+  ))
+
+FearScramble_Post <- FearScramble_Post %>% select(rt, response, subj_idx, condition, correct = key_resp.corr, stimulus)
+
+ScrambleDDM_Post <- FearScramble_Post %>% filter(!grepl("1", condition))
+
+ScrambleDDM_Post_1 <- subset(ScrambleDDM_Post, subj_idx >= 1 & subj_idx <= 27)
+ScrambleDDM_Post_2 <- subset(ScrambleDDM_Post, subj_idx > 27)
+
+write.csv(ScrambleDDM_Post_1, "C:/Users/micha/Desktop/ScrambleDDM_Post_1.csv", row.names = TRUE)
+write.csv(ScrambleDDM_Post_2, "C:/Users/micha/Desktop/ScrambleDDM_Post_2.csv", row.names = TRUE)
+
+
+# Pre
+
+FearScramble_Pre <- DDM
+
+FearScramble_Pre <- FearScramble_Pre %>% filter(!grepl("Happy", Express))
+
+FearScramble_Pre <- FearScramble_Pre %>% filter(!grepl("Pre", PRE.POST))
+
+FearScramble_Pre <- FearScramble_Pre %>%
+  mutate(condition = case_when(
+    (TrialType == "FearGoTrial") ~ "1",
+    (TrialType == "ConGoTrl") ~ "0",
+    (TrialType == "FearNoGoTrial") ~ "1",
+    (TrialType == "ConNoGoTrl") ~ "0",
+    TRUE ~ "NA"
+  ))
+
+FearScramble_Pre <- FearScramble_Pre %>% select(rt, response, subj_idx, condition, correct = key_resp.corr, stimulus)
+
+ScrambleDDM_Pre <- FearScramble_Pre %>% filter(!grepl("1", condition))
+
+ScrambleDDM_Pre_1 <- subset(ScrambleDDM_Pre, subj_idx >= 1 & subj_idx <= 27)
+ScrambleDDM_Pre_2 <- subset(ScrambleDDM_Pre, subj_idx > 27)
+
+write.csv(ScrambleDDM_Pre_1, "C:/Users/micha/Desktop/ScrambleDDM_Pre_1.csv", row.names = TRUE)
+write.csv(ScrambleDDM_Pre_2, "C:/Users/micha/Desktop/ScrambleDDM_Pre_2.csv", row.names = TRUE)
+
+rm(EmotionalDDM_Post, EmotionalDDM_Pre, FearDDM_Post, FearDDM_Pre, HappyDDM_Post, HappyDDM_Pre, ScrambleDDM_Post, ScrambleDDM_Pre)
+```
+
+
+#Chunk 6: Creating long format summaries to prepare for statistical analysis
+
+```{r Chunk 6 - Creating long summaries from raw df, echo=FALSE, include=TRUE.}
+## Create two summary files -- one with setshifting factor and one without
+
+Long_GoNo_Summary <- GoNo %>%
+  group_by(Participant.ID, PRE.POST, RealorPractice, HotorColdTrial, Express) %>%
+  summarise(GoRTmean = mean(GoRT, na.rm = TRUE), GoRTsd = sd(GoRT, na.rm = TRUE), RT_hits_corr = mean(RT_hits_corr, na.rm = TRUE), AccuratePress = sum(SP_pressed), AccurateNoPress = sum(SNP_nopress), InaccuratePress = sum(SP_fail), InaccurateNoPress = sum(SNP_fail))
+
+Long_GoNo_SummaryAlt <- GoNo %>%
+  group_by(Participant.ID, PRE.POST, RealorPractice, HotorColdTrial, TrialType) %>%
+  summarise(GoRTmean = mean(GoRT, na.rm = TRUE), GoRTsd = sd(GoRT, na.rm = TRUE), RT_hits_corr = mean(RT_hits_corr, na.rm = TRUE), AccuratePress = sum(SP_pressed, na.rm = FALSE) / 120 * 100, AccurateNoPress = sum(SNP_nopress, na.rm = FALSE) / 40 * 100, InaccuratePress = sum(SP_fail, na.rm = FALSE), InaccurateNoPress = sum(SNP_fail, na.rm = FALSE), IncorrectRT = mean(NoGoErrorRT, na.rm = TRUE))
+
+Long_GoNo_SummaryAlt2 <- GoNo %>%
+  group_by(Participant.ID, PRE.POST, RealorPractice, HotorColdTrial, Express) %>%
+  summarise(AccuratePress = sum(SP_pressed, na.rm = TRUE), AccurateNoPress = sum(SNP_nopress, na.rm = TRUE), InaccuratePress = sum(SP_fail, na.rm = TRUE), InaccurateNoPress = sum(SNP_fail, na.rm = TRUE))
+
+Long_GoNo_SummaryAlt2 <- subset(Long_GoNo_SummaryAlt2, !grepl("2022_Mar_09_1116", PRE.POST, ignore.case = TRUE))
+
+Long_GoNo_SummarySet <- GoNo %>%
+  group_by(Participant.ID, PRE.POST, RealorPractice, HotorColdTrial, SetShift) %>%
+  summarise(GoRTmean = mean(GoRT, na.rm = TRUE), GoRTsd = sd(GoRT, na.rm = TRUE), RT_hits_corr = mean(RT_hits_corr, na.rm = TRUE), AccuratePress = sum(SP_pressed, na.rm = TRUE), AccurateNoPress = sum(SNP_nopress, na.rm = TRUE), InaccuratePress = sum(SP_fail, na.rm = TRUE), InaccurateNoPress = sum(SNP_fail, na.rm = TRUE))
+
+Long_GoNo_Summary <- Long_GoNo_Summary %>% filter(HotorColdTrial != "NA")
+Long_GoNo_SummaryAlt <- Long_GoNo_SummaryAlt %>% filter(HotorColdTrial != "NA")
+Long_GoNo_SummarySet <- Long_GoNo_SummarySet %>% filter(HotorColdTrial != "NA")
+
+Long_GoNo_SummaryQ <- GoNo %>%
+  group_by(Participant.ID, PRE.POST) %>%
+  summarise(GoRTmean = mean(GoRT, na.rm = TRUE), GoRTsd = sd(GoRT, na.rm = TRUE), AccuratePress = sum(SP_pressed), AccurateNoPress = sum(SNP_nopress), InaccuratePress = sum(SP_fail), InaccurateNoPress = sum(SNP_fail))
+
+# Remove practice to only summarise data from real task trials
+
+Long_GoNo_SummaryRealTask <- Long_GoNo_Summary %>% filter(!grepl("Practice", RealorPractice))
+Long_GoNo_SummaryRealTask <- Long_GoNo_SummaryRealTask %>% filter(!grepl("NA", RealorPractice))
+
+Long_GoNo_SummaryAlt <- Long_GoNo_SummaryAlt %>% filter(!grepl("Practice", RealorPractice))
+Long_GoNo_SummaryAlt <- Long_GoNo_SummaryAlt %>% filter(!grepl("NA", RealorPractice))
+
+Long_GoNo_SummaryRealTaskSet <- Long_GoNo_SummarySet %>% filter(!grepl("Practice", RealorPractice))
+Long_GoNo_SummaryRealTaskSet <- Long_GoNo_SummaryRealTaskSet %>% filter(!grepl("NA", RealorPractice))
+Long_GoNo_SummaryRealTaskSet <- Long_GoNo_SummaryRealTaskSet %>% filter(!grepl("NA", SetShift))
+
+# Remove original raw df and redundant dfs
+rm(GoNo, Long_GoNo_Summary, Long_GoNo_SummarySet)
+
+# Renaming factors to increase readability
+Long_GoNo_SummaryRealTask$PRE.POST <- recode_factor(Long_GoNo_SummaryRealTask$PRE.POST, "Pre" = "Baseline")
+Long_GoNo_SummaryRealTask$Express <- recode_factor(Long_GoNo_SummaryRealTask$Express, "Scramble" = "Neutral")
+
+Long_GoNo_SummaryAlt$PRE.POST <- recode_factor(Long_GoNo_SummaryAlt$PRE.POST, "Pre" = "Baseline")
+
+Long_GoNo_SummaryRealTaskSet$PRE.POST <- recode_factor(Long_GoNo_SummaryRealTaskSet$PRE.POST, "Pre" = "Baseline")
+```
+
+##Chunk 7 (Optional): Data further quality checks to check for outliers
+
+```{r Chunk 7 (Optional) - Further Quality Checks (Outliers), echo=FALSE, include=TRUE}
+min(Long_GoNo_SummaryQ$GoRTmean, na.rm = T)
+max(Long_GoNo_SummaryQ$GoRTmean, na.rm = T)
+
+ggplot(Long_GoNo_SummaryRealTask, aes(x = GoRTmean)) +
+  geom_histogram() +
+  xlab("Response time (ms)") +
+  ylab("Frequency") +
+  labs(title = "Participant average of response time (ms) across all 'go' trials")
+
+min(Long_GoNo_SummaryQ$AccuratePress, na.rm = T)
+max(Long_GoNo_SummaryQ$AccuratePress, na.rm = T)
+
+ggplot(Long_GoNo_SummaryQ, aes(x = AccuratePress)) +
+  geom_histogram() +
+  xlab("Accuracy") +
+  ylab("Frequency") +
+  labs(title = "Participant average of correct inputs across all 'Go' trials")
+
+min(Long_GoNo_SummaryQ$AccurateNoPress, na.rm = T)
+max(Long_GoNo_SummaryQ$AccurateNoPress, na.rm = T)
+
+ggplot(Long_GoNo_SummaryQ, aes(PRE.POST, AccuratePress)) +
+  geom_boxplot()
+
+is_outlier <- function(x) {
+  return(x < quantile(x, 0.25) - 1.5 * IQR(x) | x > quantile(x, 0.75) + 1.5 * IQR(x))
+}
+MasterGNGwideAlt %>%
+  group_by(PRE.POST) %>%
+  mutate(outlier = ifelse(is_outlier(AccurateNoPress), PRE.POST, as.numeric(NA))) %>%
+  ggplot(aes(x = factor(PRE.POST), AccurateNoPress)) +
+  scale_x_discrete(limits = rev(levels(Long_GoNo_SummaryQ$PRE.POST))) +
+  geom_boxplot(outlier.colour = NA) +
+  ggbeeswarm::geom_beeswarm(aes(color = AccurateNoPress)) +
+  ggrepel::geom_text_repel(data = . %>% filter(!is.na(outlier)), aes(label = Participant.ID)) +
+  scale_colour_gradient(low = "blue", high = "red") +
+  labs(title = "Participant average of response time (ms) across all 'go' trials") +
+  ylab("Response time") +
+  xlab("Pre or Post")
+
+ggplot(MasterGNGwideAlt, aes(x = AccurateNoPress)) +
+  geom_histogram() +
+  xlab("Accuracy of inhibition") +
+  ylab("Frequency") +
+  labs(title = "Participant average of correct non-inputs across all 'No-Go' trials")
+
+Long_GoNo_SummaryQ %>%
+  group_by(PRE.POST) %>%
+  mutate(outlier = ifelse(is_outlier(AccuratePress), PRE.POST, as.numeric(NA))) %>%
+  ggplot(aes(x = factor(PRE.POST), AccuratePress)) +
+  geom_boxplot(outlier.colour = NA) +
+  scale_x_discrete(limits = unique(rev(Long_GoNo_SummaryQ$PRE.POST))) +
+  ggbeeswarm::geom_beeswarm(aes(color = AccuratePress)) +
+  ggrepel::geom_text_repel(data = . %>% filter(!is.na(outlier)), aes(label = Participant.ID)) +
+  scale_colour_gradient(low = "blue", high = "red") +
+  labs(title = "Participant average of correct inputs across all 'No-Go' trials") +
+  ylab("Accuracy of inhibition") +
+  xlab("Pre or Post")
+
+ggplot(Long_GoNo_SummaryQ, aes(x = AccurateNoPress)) +
+  geom_histogram() +
+  xlab("Accuracy of inhibition") +
+  ylab("Frequency") +
+  labs(title = "Participant average of correct non-inputs across all 'No-Go' trials")
+
+Long_GoNo_SummaryQ %>%
+  group_by(PRE.POST) %>%
+  mutate(outlier = ifelse(is_outlier(AccurateNoPress), as.factor(PRE.POST), as.numeric(NA))) %>%
+  ggplot(aes(x = factor(PRE.POST), AccurateNoPress)) +
+  geom_boxplot(outlier.colour = NA) +
+  ggbeeswarm::geom_beeswarm(aes(color = AccurateNoPress)) +
+  ggrepel::geom_text_repel(data = . %>% filter(!is.na(outlier)), aes(label = Participant.ID)) +
+  scale_colour_gradient(low = "blue", high = "red") +
+  labs(title = "Participant average of correct non-inputs across all 'No-Go' trials") +
+  ylab("Accuracy of inhibition") +
+  xlab("Pre or Post")
+```
+
+#Chunk 8 (Optional): Adding in participant information from demographic file and renaming some factor levels
+
+```{r Chunk 8 (Optional) - Aggregation with demographic df, echo=FALSE, include=TRUE}
+# You will need this step if your analysis requires splitting by factors contained in another excel file.
+
+Long_GoNo_SummaryRealTask$HotorColdTrial <- recode_factor(Long_GoNo_SummaryRealTask$HotorColdTrial, "Cold" = "Control condition")
+Long_GoNo_SummaryRealTask$HotorColdTrial <- recode_factor(Long_GoNo_SummaryRealTask$HotorColdTrial, "Hot" = "Affective interference")
+
+Long_GoNo_SummaryAlt$HotorColdTrial <- recode_factor(Long_GoNo_SummaryAlt$HotorColdTrial, "Cold" = "Control condition")
+Long_GoNo_SummaryAlt$HotorColdTrial <- recode_factor(Long_GoNo_SummaryAlt$HotorColdTrial, "Hot" = "Affective interference")
+
+
+##########** Change this!!**########
+setwd("C:/Users/micha/Desktop/DemographicData")
+####################################
+
+Demographics <- read.xlsx("Demo4Analysis.xlsx")
+
+Demographics$Participant.ID <- as.factor(Demographics$Participant.ID)
+
+MasterGNGwide <- merge(Long_GoNo_SummaryRealTask, Demographics, by = "Participant.ID")
+
+MasterGNGwideSet <- merge(Long_GoNo_SummaryRealTaskSet, Demographics, by = "Participant.ID")
+
+MasterGNGwideAlt <- merge(Long_GoNo_SummaryAlt, Demographics, by = "Participant.ID")
+
+MasterGNGwideAlt2 <- merge(Long_GoNo_SummaryAlt2, Demographics, by = "Participant.ID")
+```
+
+#Chunk 9 (Optional): Outlier removal
+
+```{r Chunk 10 (Optional) - Outlier Removal, echo=FALSE, include=TRUE}
+#### Removal of outliers
+
+# P001, P008 & P011 self-reported issues during the task and were performance outliers in the main outcome (no-go accuracy/response inhibition). However, ANCOVA analysis remains significant without outlier removal. In non-model and computational analyses, the same data-points are used.
+
+removal_df <- subset(MasterGNGwide, Participant.ID != "P001" & Participant.ID != "P011" & Participant.ID != "P008")
+
+removal_df2 <- subset(MasterGNGwideSet, Participant.ID != "P001" & Participant.ID != "P011" & Participant.ID != "P008")
+
+removal_df3 <- subset(MasterGNGwideAlt, Participant.ID != "P001" & Participant.ID != "P011" & Participant.ID != "P008")
+
+removal_df4 <- subset(MasterGNGwideAlt2, Participant.ID != "P001" & Participant.ID != "P011" & Participant.ID != "P008")
+
+MasterGNGwide <- droplevels(removal_df)
+MasterGNGwideSet <- droplevels(removal_df2)
+MasterGNGwideAlt <- droplevels(removal_df3)
+MasterGNGwideAlt2 <- droplevels(removal_df4)
+
+rm(removal_df, removal_df2, removal_df3)
+```
+
+#Chunk ???: SDT Parsing
+
+```{r Chunk ?? - SDT, echo=FALSE, include=TRUE}
+# Hit, Miss, Correct Rejection and False Alarm for go trials
+
+# AccuratePress = Hit
+# InaccuratePress = Miss
+# AccurateNoPress = Correct Rejection
+# InaccurateNoPress = False Alarm
+
+#######
+
+# MasterGNGwideAlt
+
+indices <- dprime(MasterGNGwideAlt2$AccuratePress, MasterGNGwideAlt2$InaccurateNoPress, MasterGNGwideAlt2$InaccuratePress, MasterGNGwideAlt2$AccurateNoPress, n_distractors = FALSE)
+
+MasterGNGwideAlt2 <- cbind(MasterGNGwideAlt2, indices)
+```
+
+
+
+#Chunk 10: Generation of time-specific subsets of dataset
+
+```{r Chunk 11 - Subsetting long format data based on relevant factors, echo=FALSE, include=TRUE}
+# Remove quality check df if generated previously
+
+rm(Long_GoNo_SummaryQ)
+
+# Merge df with demographic file (skip this step if not required)
+
+Long_GoNo_SummaryRealTask <- left_join(Long_GoNo_SummaryRealTask, Demographics, by = "Participant.ID")
+Long_GoNo_SummaryRealTaskSet <- left_join(Long_GoNo_SummaryRealTaskSet, Demographics, by = "Participant.ID")
+
+# Generate post-only and pre-only df
+
+Long_GoNo_SummaryRealTaskPostOnly <- MasterGNGwide %>% filter(!str_detect(PRE.POST, "Baseline"))
+Long_GoNo_SummaryRealTaskPreOnly <- MasterGNGwide %>% filter(!str_detect(PRE.POST, "Post"))
+
+Long_GoNo_SummaryRealTaskSetPostOnly <- MasterGNGwideSet %>% filter(!str_detect(PRE.POST, "Baseline"))
+Long_GoNo_SummaryRealTaskSetPreOnly <- MasterGNGwideSet %>% filter(!str_detect(PRE.POST, "Post"))
+Long_GoNo_SummaryRealTaskSetShiftPostOnly <- Long_GoNo_SummaryRealTaskSetPostOnly %>% filter(!str_detect(SetShift, "No"))
+
+Long_GoNo_SummaryRealTaskAltPostOnly <- MasterGNGwideAlt %>% filter(!str_detect(PRE.POST, "Baseline"))
+
+Long_GoNo_SummaryRealTaskAltPreOnly <- MasterGNGwideAlt %>% filter(!str_detect(PRE.POST, "Post"))
+
+# Recode factor to allow for cleaner graph generation (further on)
+
+Long_GoNo_SummaryRealTaskPostOnly$PRE.POST <- recode_factor(Long_GoNo_SummaryRealTaskPostOnly$PRE.POST, "Post" = "All conditions")
+Long_GoNo_SummaryRealTaskSetPostOnly$PRE.POST <- recode_factor(Long_GoNo_SummaryRealTaskSetPostOnly$PRE.POST, "Post" = "All conditions")
+
+# SetShift rename
+
+Long_GoNo_SummaryRealTaskSetPostOnly$SetShift <- recode_factor(Long_GoNo_SummaryRealTaskSetPostOnly$SetShift, "Yes" = "Set-shifted")
+Long_GoNo_SummaryRealTaskSetPostOnly$SetShift <- recode_factor(Long_GoNo_SummaryRealTaskSetPostOnly$SetShift, "No" = "No set-shift")
+
+Long_GoNo_SummaryRealTaskSetPreOnly$SetShift <- recode_factor(Long_GoNo_SummaryRealTaskSetPreOnly$SetShift, "Yes" = "Set-shifted")
+Long_GoNo_SummaryRealTaskSetPreOnly$SetShift <- recode_factor(Long_GoNo_SummaryRealTaskSetPreOnly$SetShift, "No" = "No set-shift")
+
+# Generate df that contains only the emotional distraction conditions
+
+Long_GoNo_SummaryRealTaskHotOnly <- MasterGNGwideAlt %>% filter(!str_detect(HotorColdTrial, "Cold"))
+Long_GoNo_SummaryRealTaskSetHotOnly <- MasterGNGwideSet %>% filter(!str_detect(HotorColdTrial, "Cold"))
+
+# Emotional condition only, pre and post split
+
+Long_GoNo_SummaryRealTaskHotPostOnly <- Long_GoNo_SummaryRealTaskHotOnly %>% filter(!str_detect(PRE.POST, "Baseline"))
+Long_GoNo_SummaryRealTaskHotPreOnly <- Long_GoNo_SummaryRealTaskHotOnly %>% filter(!str_detect(PRE.POST, "Post"))
+
+
+# Generate df that contains only the non-emotional control conditions
+
+Long_GoNo_SummaryRealTaskColdOnly <- MasterGNGwide %>% filter(!str_detect(PRE.POST, "Hot"))
+Long_GoNo_SummaryRealTaskSetColdOnly <- MasterGNGwideSet %>% filter(!str_detect(PRE.POST, "Hot"))
+
+# Remove superfluous df
+rm(Demographics, removal_df3, Long_GoNo_SummaryRealTaskHotOnly, Long_GoNo_SummaryRealTaskColdOnly)
+
+#####
+
+MasterGNGwideAlt2$beta <- log(MasterGNGwideAlt2$beta)
+MasterGNGwideAlt2$c <- MasterGNGwideAlt2$c + 2
+MasterGNGwideAlt2$c <- log(MasterGNGwideAlt2$c)
+
+MasterGNGwideAlt2Post <- MasterGNGwideAlt2 %>% filter(!str_detect(PRE.POST, "Baseline"))
+
+MasterGNGwideAlt2Pre <- MasterGNGwideAlt2 %>% filter(!str_detect(PRE.POST, "Post"))
+```
+
+##Chunk 11: Generation of boxplots for report
+
+```{r Chunk 12 - Generation of figures for report, echo=FALSE, include=TRUE}
+Long_GoNo_SummaryRealTaskAltPostOnly$PRE.POST <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnly$PRE.POST, "Post" = "All conditions")
+
+## Set-Shift - Accuracy x RT
+
+# RT
+
+# PlotRT_SetShift <- Long_GoNo_SummaryRealTaskSetPostOnly %>% ggplot(aes(x = Allocation, y = GoRTmean, fill = Allocation)) +
+#  facet_wrap(~ as.factor(SetShift), nrow = 1) +
+#  geom_boxplot(width = 0.25, outlier.shape = NA) +
+#  scale_fill_brewer(palette = "Set2") +
+#  scale_color_brewer(palette = "Set2") +
+#  geom_signif(
+#    comparisons = list(c("ACTIVE", "PLACEBO")),
+#    p.adjust.method = "holm",
+#    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20),
+#    margin_top = 0.05,
+#  ) +
+#  labs(title = " ") +
+#  ylab("Response time (ms) - 'Go' trials\n") +
+#  xlab(" ") +
+#  theme_minimal() +
+#  theme(legend.position = "none") +
+#  stat_boxplot(
+#    geom = "errorbar",
+#    width = 0.15
+#  ) +
+#  geom_point(position = position_jitternudge(
+#    jitter.width = .20, nudge.x = -.4
+#  ), aes(shape = SetShift, color = Allocation), alpha = 0.60)
+
+# Accuracy
+
+# Follow-up
+
+PlotRT_SetShift <- Long_GoNo_SummaryRealTaskSetPostOnly %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  facet_wrap(~SetShift) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Response inhibition accuracy (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+# Baseline
+
+PlotRT_SetShift <- Long_GoNo_SummaryRealTaskSetPreOnly %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  facet_wrap(~SetShift) +
+  stat_slab(
+    side = "right", scale = 0.55, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "bonferroni",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20, " " = 2),
+    margin_top = 0.05, textsize = 12
+  ) +
+  labs(title = " ") +
+  ylab("Response inhibition accuracy (n)\n") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(
+    legend.position = "none", text = element_text(size = 14), axis.text.y = element_text(size = 14), axis.title = element_text(size = 20), axis.text.x = element_text(size = 14), strip.text = element_text(hjust = 0.41, vjust = 1, size = 14.5),
+    panel.spacing = unit(-8, "lines")
+  ) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+# BoxplotCombined2 <- plot_grid(SetShiftBoxplot, GoAccuracyPlot, align = "h", labels = c("A", "B"), label_size = 19)
+
+
+######################################################################
+# Post
+Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2 <- Long_GoNo_SummaryRealTaskAltPostOnly[complete.cases(Long_GoNo_SummaryRealTaskAltPostOnly$AccurateNoPress), ]
+
+Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2$TrialType, "ConNoGoTrl" = "Control")
+Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2$TrialType, "FearNoGoTrial" = "Negative interference")
+Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2$TrialType, "HappyNoGoTrial" = "Positive interference")
+# Baseline
+Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2 <- Long_GoNo_SummaryRealTaskAltPreOnly[complete.cases(Long_GoNo_SummaryRealTaskAltPreOnly$AccurateNoPress), ]
+
+Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2$TrialType, "ConNoGoTrl" = "Control")
+Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2$TrialType, "FearNoGoTrial" = "Negative interference")
+Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2$TrialType, "HappyNoGoTrial" = "Positive interference")
+
+
+######################################################################
+
+# Response Inhibition Analysis
+
+# Overall plot - Follow-up
+
+Boxplot_All <- Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2 %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "***" = 0.01, "*" = 0.05, " " = 0.20), # edited to match EMM
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.y = element_text(size = 16), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(20, 110)
+
+# Overall plot - Baseline
+
+Boxplot_All <- Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2 %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_text(size = 16), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(20, 110)
+
+# Control condition only - Follow-up
+
+Control_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2 %>% filter(str_detect(TrialType, "Control"))
+
+Boxplot_Control <- Control_Only_df %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(20, 110)
+
+# Across all conditions - Baseline
+
+Control_Only_df2 <- Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2 %>% filter(str_detect(TrialType, "Control"))
+
+Boxplot_Control <- Control_Only_df2 %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(20, 110)
+
+# Fear condition only - Follow-up
+
+Fear_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2 %>% filter(str_detect(TrialType, "Negative interference"))
+
+Boxplot_Fear <- Fear_Only_df %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(20, 110)
+
+# Fear condition only - Baseline
+
+Fear_Only_df2 <- Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2 %>% filter(str_detect(TrialType, "Negative interference"))
+
+Boxplot_Fear <- Fear_Only_df2 %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(20, 110)
+
+# Happy condition only - Follow-up
+
+Happy_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyAccPlot2 %>% filter(str_detect(TrialType, "Positive interference"))
+
+Boxplot_Happy <- Happy_Only_df %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(20, 110)
+
+# Happy condition only - Baseline
+
+Happy_Only_df2 <- Long_GoNo_SummaryRealTaskAltPreOnlyAccPlot2 %>% filter(str_detect(TrialType, "Positive interference"))
+
+Boxplot_Happy <- Happy_Only_df2 %>% ggplot(aes(x = Allocation, y = AccurateNoPress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(20, 110)
+
+################################################################################
+
+###
+
+BoxplotCombined1 <- plot_grid(Boxplot_All, Boxplot_Control, Boxplot_Happy, Boxplot_Negative, nrow = 4, align = "v")
+
+
+#############################################################################################
+# Follow-up
+
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot <- Long_GoNo_SummaryRealTaskAltPostOnly
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$TrialType, "ConGoTrl" = "Control")
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$TrialType, "FearGoTrial" = "Negative interference")
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$TrialType, "HappyGoTrial" = "Positive interference")
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% filter(!str_detect(TrialType, "ConNoGoTrl"))
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% filter(!str_detect(TrialType, "FearNoGoTrial"))
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% filter(!str_detect(TrialType, "HappyNoGoTrial"))
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$TrialType <- fct_relevel(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$TrialType, "Negative interference", "Positive interference", "Control")
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$Allocation <- fct_relevel(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot$Allocation, "ACTIVE", "PLACEBO")
+
+# Baseline
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 <- Long_GoNo_SummaryRealTaskAltPreOnly
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$TrialType, "ConGoTrl" = "Control")
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$TrialType, "FearGoTrial" = "Negative interference")
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$TrialType <- recode_factor(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$TrialType, "HappyGoTrial" = "Positive interference")
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% filter(!str_detect(TrialType, "ConNoGoTrl"))
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% filter(!str_detect(TrialType, "FearNoGoTrial"))
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% filter(!str_detect(TrialType, "HappyNoGoTrial"))
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$TrialType <- fct_relevel(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$TrialType, "Negative interference", "Positive interference", "Control")
+Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$Allocation <- fct_relevel(Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2$Allocation, "ACTIVE", "PLACEBO")
+
+#########################################################################################
+
+
+#########################################################################################
+
+# Response times Figures
+
+# All Conditions - Follow-up
+
+# Asterisk counts altered to reflect EEMs.
+
+Boxplot_All <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% ggplot(aes(x = Allocation, y = GoRTmean, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("****" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.y = element_text(size = 16), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(220, 350)
+
+# All Conditions - Baseline
+
+Boxplot_All <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% ggplot(aes(x = Allocation, y = GoRTmean, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.y = element_text(size = 16), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(220, 350)
+
+# Control condition only - Follow-up
+
+Control_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% filter(str_detect(TrialType, "Control"))
+
+Boxplot_Control <- Control_Only_df %>% ggplot(aes(x = Allocation, y = GoRTmean, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(220, 350)
+
+# Control condition only - Baseline
+
+Control_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% filter(str_detect(TrialType, "Control"))
+
+Boxplot_Control <- Control_Only_df %>% ggplot(aes(x = Allocation, y = GoRTmean, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(220, 350)
+
+###################
+
+# Fear Condition - Follow-up
+
+Fear_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% filter(str_detect(TrialType, "Negative interference"))
+
+Boxplot_Fear <- Fear_Only_df %>% ggplot(aes(x = Allocation, y = GoRTmean, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("****" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(220, 350)
+
+# Fear Condition - Baseline
+
+Fear_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% filter(str_detect(TrialType, "Negative interference"))
+
+Boxplot_Fear <- Fear_Only_df %>% ggplot(aes(x = Allocation, y = GoRTmean, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(220, 350)
+
+# Happy Condition - Follow-up
+
+Happy_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% filter(str_detect(TrialType, "Positive interference"))
+
+Boxplot_Happy <- Happy_Only_df %>% ggplot(aes(x = Allocation, y = GoRTmean, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(220, 350)
+
+# Happy Condition - Baseline
+
+Happy_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% filter(str_detect(TrialType, "Positive interference"))
+
+Boxplot_Happy <- Happy_Only_df %>% ggplot(aes(x = Allocation, y = GoRTmean, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(220, 350)
+
+##################################################################################################################################
+
+#################################################################################################################################
+
+# Go trials
+
+Boxplot_All <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% ggplot(aes(x = Allocation, y = AccuratePress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("****" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.y = element_text(size = 16), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(65, 100)
+
+# All Conditions - Baseline
+
+Boxplot_All <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% ggplot(aes(x = Allocation, y = AccuratePress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 0.20),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.y = element_text(size = 16), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(65, 100)
+
+# Control condition only - Follow-up
+
+Control_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% filter(str_detect(TrialType, "Control"))
+
+Boxplot_Control <- Control_Only_df %>% ggplot(aes(x = Allocation, y = AccuratePress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(65, 100)
+
+# Control condition only - Baseline
+
+Control_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% filter(str_detect(TrialType, "Control"))
+
+Boxplot_Control <- Control_Only_df %>% ggplot(aes(x = Allocation, y = AccuratePress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(65, 100)
+
+###################
+
+# Fear Condition - Follow-up
+
+Fear_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% filter(str_detect(TrialType, "Negative interference"))
+
+Boxplot_Fear <- Fear_Only_df %>% ggplot(aes(x = Allocation, y = AccuratePress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("****" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(65, 100)
+
+# Fear Condition - Baseline
+
+Fear_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% filter(str_detect(TrialType, "Negative interference"))
+
+Boxplot_Fear <- Fear_Only_df %>% ggplot(aes(x = Allocation, y = AccuratePress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(65, 100)
+
+# Happy Condition - Follow-up
+
+Happy_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>% filter(str_detect(TrialType, "Positive interference"))
+
+Boxplot_Happy <- Happy_Only_df %>% ggplot(aes(x = Allocation, y = AccuratePress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(65, 100)
+
+# Happy Condition - Baseline
+
+Happy_Only_df <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot2 %>% filter(str_detect(TrialType, "Positive interference"))
+
+Boxplot_Happy <- Happy_Only_df %>% ggplot(aes(x = Allocation, y = AccuratePress, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("***" = 0.001, "**" = 0.01, "*" = 0.05, " " = 2),
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab(" ") +
+  xlab(" ") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), strip.text = element_blank(), axis.text.x = element_blank(), axis.text.y = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = -60)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(65, 100)
+
+# Depreciated
+
+# PlotGraphRTCurve1 <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>%
+#  group_by(Allocation) %>%
+#  ggplot(aes(x = GoRTmean, y = Allocation)) +
+#  geom_density_ridges(aes(fill = Allocation, colour = Allocation), jittered_points = TRUE, alpha = 0.5) +
+#  ylab("Response density\n\n") +
+#  xlab("Time to choice (ms)") +
+#  scale_fill_brewer(palette = "Set2") +
+#  scale_color_brewer(palette = "Set2") +
+#  theme_minimal() +
+#  theme(legend.position = "none") +
+#  geom_segment(aes(x = 360, y = 1, xend = 360, yend = 2, group = "segment")) +
+#  geom_segment(aes(x = 360, y = 1, xend = 355, yend = 1, group = "segment")) +
+#  geom_segment(aes(x = 360, y = 2, xend = 355, yend = 2, group = "segment")) +
+#  geom_text(aes(x = 362, label = "*", y = 1.42), colour = "Black", size = 6.2) +
+#  geom_text(aes(x = 362, label = "*", y = 1.48), colour = "Black", size = 6.2) +
+#  geom_text(aes(x = 362, label = "*", y = 1.54), colour = "Black", size = 6.2) +
+#  geom_text(aes(x = 362, label = "*", y = 1.61), colour = "Black", size = 6.2)
+
+
+# PlotGraphRTCurve2 <- Long_GoNo_SummaryRealTaskAltPostOnlyRTPlot %>%
+#  group_by(Allocation) %>%
+#  ggplot(aes(x = GoRTmean, y = Allocation, fill = ..x..)) +
+#  facet_wrap(~ as.factor(TrialType), nrow = 1) +
+#  geom_density_ridges(jittered_points = TRUE, rel_min_height = 0.01) +
+#  ylab("") +
+#  xlab("Time to choice (ms)") +
+#  theme_minimal() +
+#  theme(legend.position = "none", axis.text.y = element_blank()) +
+#  geom_segment(aes(x = 360, y = 1, xend = 360, yend = 2, group = "segment")) +
+#  geom_segment(aes(x = 360, y = 1, xend = 355, yend = 1, group = "segment")) +
+#  geom_segment(aes(x = 360, y = 2, xend = 355, yend = 2, group = "segment")) +
+#  geom_text(aes(x = 365, label = "*", y = 1.45), colour = "Black", size = 6.2) +
+#  geom_text(aes(x = 365, label = "*", y = 1.55), colour = "Black", size = 6.2)
+
+# BoxplotCombined3 <- plot_grid(PlotGraphRTCurve1, PlotGraphRTCurve2, align = "h", rel_widths = c(1 / 5.5, 1 / 2))
+
+### SDT plot##
+
+# C - Follow-up
+
+# Manually change asterisk to match EMM
+
+Boxplot_criterion_all <- MasterGNGwideAlt2Post %>% ggplot(aes(x = Allocation, y = c, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("****" = 0.0001, "***" = 0.001, "***" = 0.01, "***" = 0.06, " " = 0.20), # Edited to match EMM
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab("Log decision criterion (c) - Overall\n\n") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title = element_text(size = 16), strip.text = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = 0)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+# C - Baseline
+
+Boxplot_criterion_all <- MasterGNGwideAlt2Pre %>% ggplot(aes(x = Allocation, y = c, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("****" = 0.0001, "***" = 0.001, "**" = 0.01, "**" = 0.05, " " = 2), # Edited to match EMM
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab("Log decision criterion (c) - Overall\n\n") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title = element_text(size = 16), strip.text = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = 0)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15)) +
+  ylim(0, NA)
+
+# Beta - Follow-up
+
+# Manually change asterisk to match EMM
+
+Boxplot_criterion_all <- MasterGNGwideAlt2Post %>% ggplot(aes(x = Allocation, y = beta, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("****" = 0.0001, "***" = 0.001, "***" = 0.01, "***" = 0.06, " " = 0.20), # Edited to match EMM
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab("Log decision criterion (β) - Overall\n\n") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title = element_text(size = 16), strip.text = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = 0)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+# Beta - Baseline
+
+Boxplot_criterion_all <- MasterGNGwideAlt2Pre %>% ggplot(aes(x = Allocation, y = beta, fill = Allocation)) +
+  stat_slab(
+    side = "right", scale = 0.5, show.legend = F,
+    position = position_dodge(width = .8), alpha = 0.5,
+    aes(fill_ramp = stat(level)), .width = c(.50, .95, 1)
+  ) +
+  geom_boxplot(width = 0.2, outlier.shape = NA) +
+  scale_fill_brewer(palette = "Set2") +
+  scale_color_brewer(palette = "Set2") +
+  geom_signif(
+    comparisons = list(c("ACTIVE", "PLACEBO")),
+    p.adjust.method = "holm",
+    map_signif_level = c("****" = 0.0001, "***" = 0.001, "***" = 0.01, "***" = 0.05, " " = 2), # Edited to match EMM
+    margin_top = 0.05, textsize = 10
+  ) +
+  labs(title = " ") +
+  ylab("Log decision criterion (β) - Overall\n\n") +
+  xlab("") +
+  theme_minimal() +
+  theme(legend.position = "none", text = element_text(size = 14), axis.title = element_text(size = 16), strip.text = element_blank(), plot.margin = margin(t = 0, r = -20, l = 0, b = 0)) +
+  stat_boxplot(
+    geom = "errorbar",
+    width = 0.15
+  ) +
+  geom_point(position = position_jitternudge(
+    jitter.width = 0.125, jitter.height = -0.3, nudge.x = -0.265, seed = 123
+  ), aes(color = Allocation, shape = Allocation), size = 4.4, stroke = 0.2, alpha = 0.5) +
+  scale_shape_manual(values = c(19, 15))
+
+######################################################
+
+######################################################
+
+# Go-trial RT and No-Go Trial accuracy scatterplot
+
+Scatterplot_Go <- MasterGNGwideAlt %>%
+  group_by(Participant.ID, PRE.POST) %>%
+  summarise(GoRTmean = mean(GoRTmean, na.rm = TRUE), AccurateNoPress = mean(AccurateNoPress, na.rm = TRUE))
+
+Scatterplot_Go <- Scatterplot_Go %>% filter(str_detect(PRE.POST, "Post"))
+
+# Compute correlation coefficient and p-value
+cor_result <- cor.test(Scatterplot_Go$GoRTmean, Scatterplot_Go$AccurateNoPress)
+
+# Create the scatterplot
+Scatterplot_check <- ggplot(data = Scatterplot_Go, aes(x = GoRTmean, y = AccurateNoPress)) +
+  geom_point(size = 2.5, color = "darkgrey") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  labs(
+    x = "\nResponse time for 'Go' trials (ms)\n",
+    y = "\nResponse inhibition  (%)\n"
+  ) +
+  annotate("text",
+    x = Inf, y = -Inf, hjust = 1, vjust = -0.5, size = 5,
+    label = paste(
+      "R =", round(cor_result$estimate, 3),
+      "\nP <", ifelse(cor_result$p.value < 0.001, 0.001, format(cor_result$p.value, scientific = FALSE, digits = 3))
+    )
+  ) +
+  theme_minimal() +
+  theme(axis.title.y = element_text(size = 16), axis.title.x = element_text(size = 16), axis.text.y = element_text(size = 15), axis.text.x = element_text(size = 15))
+
+# Print the scatterplot
+print(Scatterplot_check)
+
+####
+####
+####
+
+Scatterplot_Go <- MasterGNGwideAlt %>%
+  group_by(Participant.ID, PRE.POST) %>%
+  summarise(GoRTmean = mean(IncorrectRT, na.rm = TRUE), AccurateNoPress = mean(AccurateNoPress, na.rm = TRUE))
+
+Scatterplot_Go <- Scatterplot_Go %>% filter(str_detect(PRE.POST, "Post"))
+
+# Compute correlation coefficient and p-value
+cor_result <- cor.test(Scatterplot_Go$GoRTmean, Scatterplot_Go$AccurateNoPress)
+
+# Create the scatterplot
+Scatterplot_check2 <- ggplot(data = Scatterplot_Go, aes(x = GoRTmean, y = AccurateNoPress)) +
+  geom_point(size = 2.5, color = "darkgrey") +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  labs(
+    x = "\nResponse time for 'No-Go' trials (ms)\n",
+    y = "\nResponse inhibition  (%)\n"
+  ) +
+  annotate("text",
+    x = Inf, y = -Inf, hjust = 1, vjust = -0.5, size = 5,
+    label = paste(
+      "R =", round(cor_result$estimate, 3),
+      "\nP <", ifelse(cor_result$p.value < 0.001, 0.001, format(cor_result$p.value, scientific = FALSE, digits = 3))
+    )
+  ) +
+  theme_minimal() +
+  theme(axis.title.y = element_text(size = 16), axis.title.x = element_text(size = 16), axis.text.y = element_text(size = 15), axis.text.x = element_text(size = 15))
+###
+
+BoxplotCombined2 <- plot_grid(Scatterplot_check, Scatterplot_check2, align = "h", labels = c("A", "B"), label_size = 25)
+```
+##Chunk 12 (we don't like 13!) - Inferrential analyses for report
+
+```{r Chunk 14 - Inferrential Stats, echo=FALSE, include=TRUE}
+###### Set-shift analysis
+
+ANCOdf3 <- Long_GoNo_SummaryRealTaskSetPostOnly[c("Allocation", "Participant.ID", "AccurateNoPress", "GoRTmean", "SetShift", "Gender")]
+
+ANCOdf3 <- rename(ANCOdf3, AccurateNoPressPost = AccurateNoPress)
+ANCOdf3 <- rename(ANCOdf3, GoRTmeanPost = GoRTmean)
+
+ANCOdf4 <- Long_GoNo_SummaryRealTaskSetPreOnly[c("Allocation", "Participant.ID", "AccurateNoPress", "GoRTmean", "SetShift", "Gender")]
+
+ANCOdf4 <- rename(ANCOdf4, AccurateNoPressPre = AccurateNoPress)
+ANCOdf4 <- rename(ANCOdf4, GoRTmeanPre = GoRTmean)
+
+ANCOdfcomp2 <- left_join(ANCOdf3, ANCOdf4, by = c("Participant.ID", "Allocation", "SetShift", "Gender"))
+
+ancova_model <- aov(AccurateNoPressPost ~ Allocation + AccurateNoPressPre + SetShift + Allocation:SetShift + Error(Participant.ID), data = ANCOdfcomp2)
+
+summary(ancova_model)
+
+# No effect specifically for allocation*setshift
+
+#################
+
+ancova_model <- aov(AccurateNoPressPost ~ Allocation + AccurateNoPressPre + SetShift + Allocation:SetShift + Error(Participant.ID), data = ANCOdfcomp2)
+
+summary(ancova_model)
+
+# Gender analysis
+
+ancova_model <- aov(AccurateNoPressPost ~ Allocation + AccurateNoPressPre + SetShift + Allocation:SetShift + Gender + Gender:Allocation:SetShift + Error(Participant.ID), data = ANCOdfcomp2)
+
+summary(ancova_model)
+
+# Main analysis
+
+ANCOdf1 <- Long_GoNo_SummaryRealTaskAltPostOnly[c("Allocation", "Participant.ID", "AccurateNoPress", "AccuratePress", "GoRTmean", "TrialType", "HotorColdTrial", "Gender")]
+
+ANCOdf1 <- rename(ANCOdf1, AccurateNoPressPost = AccurateNoPress)
+ANCOdf1 <- rename(ANCOdf1, AccuratePressPost = AccuratePress)
+ANCOdf1 <- rename(ANCOdf1, GoRTmeanPost = GoRTmean)
+
+ANCOdf2 <- Long_GoNo_SummaryRealTaskAltPreOnly[c("Allocation", "Participant.ID", "AccurateNoPress", "AccuratePress", "GoRTmean", "TrialType", "HotorColdTrial", "Gender")]
+
+ANCOdf2 <- rename(ANCOdf2, AccurateNoPressPre = AccurateNoPress)
+ANCOdf2 <- rename(ANCOdf2, AccuratePressPre = AccuratePress)
+ANCOdf2 <- rename(ANCOdf2, GoRTmeanPre = GoRTmean)
+
+ANCOdfcomp <- left_join(ANCOdf1, ANCOdf2, by = c("Participant.ID", "Allocation", "TrialType", "HotorColdTrial", "Gender"))
+
+######### Response time analysis###########
+
+ANCOVA_Post_RT <- aov(GoRTmeanPost ~ Allocation + TrialType + Allocation * TrialType + GoRTmeanPre + Error(Participant.ID),
+  data = ANCOdfcomp
+)
+
+summary(ANCOVA_Post_RT)
+
+lm_model <- lmer(GoRTmeanPost ~ Allocation + TrialType + Allocation:TrialType + GoRTmeanPre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Significant effect - proceed to analysing post data as post hoc
+
+lm_model <- lm(GoRTmeanPost ~ Allocation + TrialType + Allocation:TrialType, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~ Allocation | TrialType)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm", side = "=")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+# Descriptive stats
+
+ANCOdf1 %>%
+  group_by(TrialType, Allocation) %>%
+  get_summary_stats(GoRTmeanPost, type = "mean_sd")
+
+###
+
+## Request by the reviewer - "Was there perhaps a simple main effect of valence (aversive vs control) for drug, but not placebo?"
+
+# Aversive vs control
+
+ANCOdfcomp2 <- ANCOdfcomp
+ANCOdfcomp3 <- ANCOdfcomp
+###
+
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("PLACEBO", Allocation))
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("HappyNoGoTrial", TrialType))
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("FearNoGoTrial", TrialType))
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("ConNoGoTrl", TrialType))
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("HappyGoTrial", TrialType))
+
+ANCOVA_Post_RT <- aov(GoRTmeanPost ~ TrialType + GoRTmeanPre + Error(Participant.ID),
+  data = ANCOdfcomp2
+)
+
+summary(ANCOVA_Post_RT)
+
+##
+
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("ACTIVE", Allocation))
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("HappyNoGoTrial", TrialType))
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("FearNoGoTrial", TrialType))
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("ConNoGoTrl", TrialType))
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("HappyGoTrial", TrialType))
+
+ANCOVA_Post_RT <- aov(GoRTmeanPost ~ TrialType + GoRTmeanPre + Error(Participant.ID),
+  data = ANCOdfcomp3
+)
+
+summary(ANCOVA_Post_RT)
+
+#############################################
+
+ANCOdfcomp2 <- ANCOdfcomp
+ANCOdfcomp3 <- ANCOdfcomp
+###
+
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("PLACEBO", Allocation))
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("HappyNoGoTrial", TrialType))
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("FearNoGoTrial", TrialType))
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("ConNoGoTrl", TrialType))
+ANCOdfcomp2 <- ANCOdfcomp2 %>% filter(!grepl("FearGoTrial", TrialType))
+
+ANCOVA_Post_RT <- aov(GoRTmeanPost ~ TrialType + GoRTmeanPre + Error(Participant.ID),
+  data = ANCOdfcomp2
+)
+
+summary(ANCOVA_Post_RT)
+
+##
+
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("ACTIVE", Allocation))
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("HappyNoGoTrial", TrialType))
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("FearNoGoTrial", TrialType))
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("ConNoGoTrl", TrialType))
+ANCOdfcomp3 <- ANCOdfcomp3 %>% filter(!grepl("FearGoTrial", TrialType))
+
+ANCOVA_Post_RT <- aov(GoRTmeanPost ~ TrialType + GoRTmeanPre + Error(Participant.ID),
+  data = ANCOdfcomp3
+)
+
+summary(ANCOVA_Post_RT)
+
+###
+
+lm_model <- lmer(GoRTmeanPost ~ TrialType + GoRTmeanPre + (1 | Participant.ID), data = ANCOdfcomp2)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+
+## Gender analysis
+
+ANCOVA_Post_RT <- aov(GoRTmeanPost ~ Allocation + TrialType + Allocation * TrialType + Gender + Gender:Allocation + Gender:Allocation:TrialType + GoRTmeanPre + Error(Participant.ID),
+  data = ANCOdfcomp
+)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(GoRTmeanPost, type = "mean_sd")
+
+######### Inhibition analysis###########
+
+ANCOVA_Inhib_Post <- aov(AccurateNoPressPost ~ Allocation + TrialType + Allocation:TrialType + AccurateNoPressPre + Error(Participant.ID),
+  data = ANCOdfcomp
+)
+
+summary(ANCOVA_Inhib_Post)
+
+lm_model <- lmer(AccurateNoPressPost ~ Allocation + TrialType + Allocation:TrialType + AccurateNoPressPre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Significant effect - proceed to analysing post data as post hoc
+
+# Calculate estimated marginal means (EMMs) for Allocation effect
+lm_model <- lm(AccurateNoPressPost ~ Allocation + TrialType + Allocation:TrialType, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~Allocation)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+
+### Extra on request of reviewer (not statistically valid to do this.)
+
+EMM_2 <- emmeans(lm_model, ~ Allocation | TrialType)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+
+# Descriptive stats
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(AccurateNoPressPost, type = "mean_sd")
+
+## Gender analysis
+
+ANCOVA_Post_RT <- aov(AccurateNoPressPost ~ Allocation + TrialType + Allocation * TrialType + Gender + Gender:Allocation + Gender:Allocation:TrialType + AccurateNoPressPre + Error(Participant.ID),
+  data = ANCOdfcomp
+)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(AccurateNoPressPost, type = "mean_sd")
+
+# Commission analysis##########
+
+ANCOVA_Comm_RT <- aov(AccuratePressPost ~ Allocation + TrialType + Allocation:TrialType + AccuratePressPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Comm_RT)
+
+## Gender analysis
+
+ANCOVA_Post_RT <- aov(AccuratePressPost ~ Allocation + TrialType + Allocation * TrialType + Gender + Gender:Allocation + Gender:Allocation:TrialType + AccuratePressPre + Error(Participant.ID),
+  data = ANCOdfcomp
+)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(AccuratePressPost, type = "mean_sd")
+
+###
+
+########################
+
+## Signal Detection Analysis##
+
+ANCOdf1 <- MasterGNGwideAlt2Post[c("Allocation", "Participant.ID", "dprime", "beta", "c", "Express", "HotorColdTrial", "Gender")]
+
+ANCOdf1 <- rename(ANCOdf1, dprimePost = dprime)
+ANCOdf1 <- rename(ANCOdf1, betaPost = beta)
+ANCOdf1 <- rename(ANCOdf1, cPost = c)
+
+ANCOdf2 <- MasterGNGwideAlt2Pre[c("Allocation", "Participant.ID", "dprime", "beta", "c", "Express", "HotorColdTrial", "Gender")]
+
+ANCOdf2 <- rename(ANCOdf2, dprimePre = dprime)
+ANCOdf2 <- rename(ANCOdf2, betaPre = beta)
+ANCOdf2 <- rename(ANCOdf2, cPre = c)
+
+ANCOdfcomp <- left_join(ANCOdf1, ANCOdf2, by = c("Participant.ID", "Allocation", "Express", "Gender"))
+
+# Sensitivity / Signal Discrimination Ability
+ANCOVA_dprime <- aov(dprimePost ~ Allocation + Express + Allocation:Express + dprimePre + Error(Participant.ID),
+  data = ANCOdfcomp
+)
+
+summary(ANCOVA_dprime)
+
+#### Significant effect
+
+lm_model <- lmer(dprimePost ~ Allocation + Express + Allocation:Express + dprimePre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Calculate estimated marginal means (EMMs) for Allocation effect
+
+lm_model <- lm(dprimePost ~ Allocation + Express + Allocation:Express, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~Allocation)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+## Not significant in post-hoc
+
+## Gender analysis
+
+ANCOVA_Post_RT <- aov(dprimePost ~ Allocation + Express + Allocation * Express + Gender + Gender:Allocation + Gender:Allocation:Express + dprimePre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(dprimePost, type = "mean_sd")
+
+###
+
+lm_model <- lm(dprimePost ~ Allocation + Express + Gender + Allocation:Express, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~Gender)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+#####
+
+### Beta (criterion) analyses
+
+ANCOVA_beta <- aov(betaPost ~ Allocation + Express + Allocation:Express + betaPre + Error(Participant.ID),
+  data = ANCOdfcomp
+)
+
+summary(ANCOVA_beta)
+
+## Significant effect - proceed to post-hoc and effect size calculation.
+
+lm_model <- lmer(betaPost ~ Allocation + Express + Allocation:Express + betaPre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Calculate estimated marginal means (EMMs) for Allocation effect
+lm_model <- lm(betaPost ~ Allocation + Express + Allocation:Express, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~Allocation)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+
+# Descriptive stats
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(betaPost, type = "mean_sd")
+
+#############################################################################################
+
+## Gender analysis
+
+ANCOVA_Post_RT <- aov(betaPost ~ Allocation + Express + Allocation * Express + Gender + Gender:Allocation + Gender:Allocation:Express + betaPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(betaPost, type = "mean_sd")
+
+#############################################################################################
+## Alternative criterion (c) analysis
+
+ANCOVA_c <- aov(cPost ~ Allocation + Express + Allocation:Express + cPre + Error(Participant.ID),
+  data = ANCOdfcomp
+)
+
+summary(ANCOVA_c)
+
+lm_model <- lm(dprimePost ~ Allocation + Express + Gender + Allocation:Express, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~Gender)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+
+## Significant effect - proceed to post-hoc and effect size calculation.
+
+lm_model <- lmer(cPost ~ Allocation + Express + Allocation:Express + cPre + (1 | Participant.ID), data = ANCOdfcomp)
+
+eta_squared(lm_model, ci = 0.95, alternative = "two.sided")
+
+# Calculate estimated marginal means (EMMs) for Allocation effect
+lm_model <- lm(cPost ~ Allocation + Express + Allocation:Express, data = ANCOdfcomp)
+EMM_2 <- emmeans(lm_model, ~Allocation)
+
+# Calculate pairwise comparisons for the specified contrasts
+pairwise_comparisons <- pairs(EMM_2, adjust = "holm")
+
+# Print the results
+summary(pairwise_comparisons)
+
+# Calculate effect size using eff_size
+effect_size <- eff_size(EMM_2, sigma = sigma(lm_model), edf = df.residual(lm_model))
+
+# Print the effect size summary
+summary(effect_size)
+
+# Descriptive stats
+
+ANCOdf1 %>%
+  group_by(Allocation) %>%
+  get_summary_stats(cPost, type = "mean_sd")
+
+
+## Gender analysis
+
+ANCOVA_Post_RT <- aov(cPost ~ Allocation + Express + Allocation * Express + Gender + Gender:Allocation + Gender:Allocation:Express + cPre + Error(Participant.ID), data = ANCOdfcomp)
+
+summary(ANCOVA_Post_RT)
+
+ANCOdf1 %>%
+  group_by(Gender, Allocation) %>%
+  get_summary_stats(cPost, type = "mean_sd")
+```
+```
