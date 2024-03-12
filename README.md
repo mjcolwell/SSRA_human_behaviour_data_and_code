@@ -10,16 +10,20 @@ For any questions or to report any issues, please contact Michael Colwell (micha
 
 If you wish to use our data in your research study, please first contact catherine.harmer@psych.ox.ac.uk.
 
-## DOI
+All code within this datapack was validated on 64-bit Windows 10 (10.0, build 19045). No non-standard hardware is required to run this code.
 
-https://doi.org/10.5281/zenodo.8395069
+## Citation and DOI
 
-## Instructions
+Citation for the study paper TBC.
 
-The datapack branches into folders which pertain (mostly) to tasks analysed throughout the paper (e.g. PILT). Each task folder will contain an associated RMarkdown file. You will need
-to manually set the directory within each markdown file to run the scripts.
+Data pack DOI: https://doi.org/10.5281/zenodo.8395069
 
-The scripts have been tested on Windows with R version 4.3.1. The following packages are required to run all analyses:
+## Instructions for non-model preprocessing and statistical analysis scripts (R Software)
+
+The datapack branches into folders which pertain (mostly) to tasks analysed throughout the paper (e.g. PILT). Each task folder will contain an associated RMarkdown file. You will need to manually set the directory within each markdown file to run the scripts.
+
+The scripts have been tested on Windows with R language version 4.3.1. Each R script is an R Markdown file, where sections of preprocessing and analyses of divided into chunks for ease of use (we recommend using [R Studio](https://posit.co/download/rstudio-desktop/) for ease of use). Downloads and instructions for R 
+are available [here](https://www.r-project.org/) (approxmiate installation time: 10-15 minutes). Once installed, you will be required to install the following packages to use the R Markdown files (you will be automatically prompted to do so if using R Studio). The following packages/dependencies are required:
 
 * dplyr - 1.1.2
 * tidyverse - 2.0.0
@@ -54,17 +58,16 @@ The scripts have been tested on Windows with R version 4.3.1. The following pack
 * effectsize - 0.8.6
 * lmerTest - 3.1-3
 
-## DDM
+Before running each script, you will need to set the directory for source files so R can load these. The easiest method of doing this is searching by using Ctrl + F (Cmd + F on Mac) for the string "C:/", which should identify instances where you must set the directory. Once this is done, you can activate a code chunk by clicking anywhere within it and clicking "run chunk" or using Ctrl + Shift + Enter (Cmd + Option + R on Mac). You must activate each code chunk in sequence unless it is marked as optional or as a quality check chunk. Run each chunk until the end of the markdown file to reproduce relevant findings (i.e., ANCOVA and EEM modelling results) reported within the primary paper. It should take less than five minutes to run scripts on an average computer. If you have any difficulty running these scripts, please contact the repository host.
 
-You will be able to rerun the AGNG drift difusion modelling via Python + Docker. You will require the docker image "hcp4715/hddm" on the Docker hub repo.
+## Drift Diffusion Model instructions
 
-This will have all required versions of language/package to run the HDDM script. However, keep in mind that running the docker image requires virtualisation which entails a computational bottleneck. You will
-need a good computer to run this or there is a high chance of kernel failure. 
+To run the DDM computational modelling scripts you will need to use Docker to ensure consistency among Python dependencies. Docker can be downloaded [here](https://www.docker.com/products/docker-desktop/) (approxmiate installation time: 10-20 minutes). You will need a computer which allows virtualisation to use Docker; if you are unsure if this is enabled which can be checked in your BIOS menu (Docker will alert you if you try to launch it without virtualisation enabled). Once docker is running, you will need to use the image [hcp4715/hddm:0.8](https://hub.docker.com/layers/hcp4715/hddm/0.8.0/images/sha256-afcf9eab8ab17886e7e3941d58d57b0c607b878d6ac245592af7fdab68da2039?context=explore) on the Docker hub repo, however later versions of HDDM may also work. Once booted into the docker Python kernel you will be able to use Jupyter Notebook to launch the main HDDM script (./EGNG_DDM_and_analysis/HDDM_EGNG.ipynb). You will also need to load each file from the ./EGNG_DDM_and_analysis/raw_data folder (which was produced using the main AGNG preprocessing script) to reproduce the modelling parameter/likehood data (found in ./EGNG_DDM_and_analysis/All_params.csv). Given potential computational bottlenecks (leading to kernel failure), we recommend loading data from the Sep_halved which loads roughly 50% of the participant data at once (run time: approximately 5-10 minutes per section of data). The instructions within the .ipynb file should take you through the rest of the required steps.
 
-## Reinforcement Learning Models
+## Reinforcement Learning Model instructions
 
-Reinforcement modelling scripts for the PILT were created by Prof Michael Browning (michael.browning@psych.ox.ac.uk), and are available upon request. 
+Reinforcement modelling scripts for the PILT were created by Prof Michael Browning (michael.browning@psych.ox.ac.uk). These scripts have been tested on MATLAB version R2022a which can be downloaded [here](https://uk.mathworks.com/products/new_products/release2022a.html) (approxmiate installation time: 10-30 minutes), but may work on later versions. You will need to extract the scripts (./PILT_fitting_scripts/) to a location on your computer. Once extracted, you will need to set the directory within the main wrapper script (run_fit_all_chdr.m) and the extractor script (lucy_extractc.m). You will also need to make sure the 'Data' folder corresponds to the source data (.dat files) from the folder ./PILT_non-model_analysis/. Make sure to create an empty './Test' folder in the relevant directory to save the fitting procedure output. You can use the wrapper script to execute all code (selected 'Run all' setions or F5 while within the wrapper script). Running each script with the relevant modelling procedures will reproduce the modelling parameter/likehood data found in ./PILT_Reinforcement_Learning_Mod/Reinforcement_Learning_PILT_full.csv (run time: approximately 1-3 hours). Instructions for changing modelling procedures are included as comments within the script. 
 
 ## License
 
-GNU GPLv3 (see LICENSE.md)
+Mozilla Public License Version 2.0.
