@@ -1209,6 +1209,18 @@ ANCOdf1 %>%
 
 #######
 
+#Sensitivity Analysis following Review #2
+#Equivalence tests
+
+library(TOSTER)
+#Checking between-groups equivalence for optimal choices during reward trials
+TOSTtwo(m1=48.385,m2=47.704,sd1=13.423,sd2=11.374,n1=26,n2=27,low_eqbound=-0.7, high_eqbound=0.7, alpha = 0.05, var.equal=TRUE)
+
+#Checking between-groups equivalence for response times during reward trials
+TOSTtwo(m1=856.013,m2=842.04,sd1=257.478,sd2=267.344,n1=26,n2=27,low_eqbound=-0.7, high_eqbound=0.7, alpha = 0.05, var.equal=TRUE)
+
+#######
+
 ### Money analysis
 
 Money_Clean_post <- merge(Money_Clean_post, Demographics, by = "ID")
