@@ -495,5 +495,14 @@ ANCOdf1 %>%
   group_by(Trial_type, Allocation) %>%
   get_summary_stats(Out.Sens.Post, type = "mean_sd")
 
+##
+
+#Sensitivity Analysis following Review #2
+#Equivalence tests
+
+library(TOSTER)
+#Checking between-groups equivalence for outcome sensitivity during reward trials
+TOSTtwo(m1=2.606,m2=2.507,sd1=1.605,sd2=1.642,n1=26,n2=27,low_eqbound=-0.7, high_eqbound=0.7, alpha = 0.05, var.equal=TRUE)
+
 #####################################################################################
 ```
