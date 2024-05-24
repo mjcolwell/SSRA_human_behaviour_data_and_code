@@ -35,7 +35,6 @@ are available [here](https://www.r-project.org/) (approxmiate installation time:
 * ggbeeswarm - 0.7.2
 * ggrepel - 0.9.3
 * readxl - 1.4.2
-* data.table - 1.14.8
 * openxlsx - 4.2.5.2
 * ggpubr - 0.6.0
 * rstatix - 0.7.2
