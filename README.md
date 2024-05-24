@@ -2,7 +2,7 @@
 
 This repository contains source data and scripts (preprocessing, modelling and analyses) used in the Colwell et al. paper concerning the influence of SSRAs on human behaviour.
 
-This datapack has been updated following publication revision on 18/02/2024.
+This datapack has been updated following publication revision on 24/05/2024.
 
 You will need access to R, RStudio, MATLAB, Docker, and Python to run all the scripts contained within this datapack. 
 
@@ -57,6 +57,7 @@ are available [here](https://www.r-project.org/) (approxmiate installation time:
 * stringr - 1.5.0
 * effectsize - 0.8.6
 * lmerTest - 3.1-3
+* TOSTER - 0.8.1
 
 Before running each script, you will need to set the directory for source files so R can load these. The easiest method of doing this is searching by using Ctrl + F (Cmd + F on Mac) for the string "C:/", which should identify instances where you must set the directory. Once this is done, you can activate a code chunk by clicking anywhere within it and clicking "run chunk" or using Ctrl + Shift + Enter (Cmd + Option + R on Mac). You must activate each code chunk in sequence unless it is marked as optional or as a quality check chunk. Run each chunk until the end of the markdown file to reproduce relevant findings (i.e., ANCOVA and EEM modelling results) reported within the primary paper. It should take less than five minutes to run scripts on an average computer. If you have any difficulty running these scripts, please contact the repository host.
 
