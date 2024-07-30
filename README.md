@@ -14,8 +14,8 @@ All code within this datapack was validated on 64-bit Windows 10 (10.0, build 19
 
 ## Paper reference
 
-Colwell, M. J., Tagomori, H., Shang, F., Hoi Iao, C., Wigg, C. E., Browning, M., Cowen, P. J., Murphy, S. E., & Harmer, C. J. (2024). 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Direct serotonin release in humans shapes aversive learning and inhibition. _Nature Communications_, **15**. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://doi.org/10.1038/s41467-024-50394-x
+>Colwell, M. J., Tagomori, H., Shang, F., Hoi Iao, C., Wigg, C. E., Browning, M., Cowen, P. J., Murphy, S. E., & Harmer, C. J. (2024). 
+Direct serotonin release in humans shapes aversive learning and inhibition. _Nature Communications_, **15**. https://doi.org/10.1038/s41467-024-50394-x
 
 ## Instructions for non-model preprocessing and statistical analysis scripts (R Software)
 
