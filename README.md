@@ -1,8 +1,8 @@
 # Description
 
-This repository contains source data and scripts (preprocessing, modelling and analyses) used in the Colwell et al. paper concerning the influence of SSRAs on human behaviour.
+This repository contains source data and scripts (preprocessing, modelling and analyses) used in the [research article](https://www.nature.com/articles/s41467-024-50394-x) by Colwell _et al._ concerning the influence of SSRAs on human behaviour.
 
-This datapack has been updated following publication revision on 24/05/2024.
+This datapack has been updated following final paper acceptance on 30/07/2024.
 
 You will need access to R, RStudio, MATLAB, Docker, and Python to run all the scripts contained within this datapack. 
 
@@ -12,11 +12,10 @@ If you wish to use our data in your research study, please first contact catheri
 
 All code within this datapack was validated on 64-bit Windows 10 (10.0, build 19045). No non-standard hardware is required to run this code.
 
-## Citation and DOI
+## Paper reference
 
-Citation for the study paper TBC.
-
-Data pack DOI: https://doi.org/10.5281/zenodo.8395069
+Colwell, M. J., Tagomori, H., Shang, F., Hoi Iao, C., Wigg, C. E., Browning, M., Cowen, P. J., Murphy, S. E., & Harmer, C. J. (2024). 
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Direct serotonin release in humans shapes aversive learning and inhibition. _Nature Communications_, **15**. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;https://doi.org/10.1038/s41467-024-50394-x
 
 ## Instructions for non-model preprocessing and statistical analysis scripts (R Software)
 
